@@ -2,42 +2,39 @@
 
 ## Project target
 
-| Item | Baseline | Confidence / status |
+| Item | Baseline | Status |
 |---|---|---|
-| Minecraft | Java Edition 26.3 | Explicit project decision; implementation not started |
-| Historical GTNH baseline | GTNH on Minecraft 1.7.10 | Research reference only; not a runtime dependency |
-| Java runtime | Java 25 or newer for Minecraft 26.3 | Target requirement; verify against official version metadata and launcher/runtime behavior |
-| Java research range | Java 17–26 | Investigation range only; does not mean every JDK in this range can run MC 26.3 |
-| Mod loader | Undecided | Requires current ecosystem comparison |
-| Mappings / modding API | Undecided | Depends on loader choice |
-| Build system | Undecided | Select after platform research |
-| Project model | Independent modern re-architecture | Explicit project decision |
+| Minecraft | Java Edition 26.3 | Explicit project target; implementation not started |
+| Historical GTNH | Minecraft 1.7.10 | Research reference only |
+| Java runtime | Java 25 or newer | Target requirement; verify against official metadata |
+| Mod loader | NeoForge | Selected; exact build not pinned |
+| Mappings and APIs | NeoForge 26.3 toolchain | To be selected with prototype |
+| Build system | Gradle with NeoForge-supported tooling | Exact versions to be pinned |
+| Recipe viewer | First-party Reforged implementation | JEI explicitly excluded |
 
 ## Compatibility policy
 
-Minecraft 26.3 is the primary target. Do not lower the target or introduce legacy compatibility constraints without an explicit project decision.
+Minecraft 26.3 on NeoForge is the project target. Do not change loader or lower the Minecraft target without an explicit project decision.
 
-Java 17–26 is a range for investigating tooling, build compatibility, and possible future branches. It is **not** a claim that Minecraft 26.3 itself supports Java 17–24. The 26.3 runtime target is Java 25 or newer, subject to verification against authoritative version metadata.
+Java 25+ is the current runtime target to verify for Minecraft 26.3. Any broader Java compatibility investigation is not a claim that this Minecraft version runs on older JDKs.
 
-If older Java support is desired later, treat it as a separate Minecraft target/branch decision rather than implying that one 26.3 build can run on every JDK from 17 through 26.
+## Platform setup gates
 
-## Platform selection gates
+1. Verify the Minecraft 26.3 Java requirement using official version metadata.
+2. Select the current NeoForge 26.3 build and supported Gradle plugin/toolchain.
+3. Pin mappings, Gradle, and compiler settings.
+4. Create a minimal NeoForge development project.
+5. Build and launch both a client and dedicated server.
+6. Record exact versions and test results here.
 
-Before implementation begins:
+## Recipe viewer policy
 
-1. Verify Minecraft 26.3's Java requirement using official version metadata.
-2. Compare mod loaders currently available for 26.3, including ecosystem coverage, update cadence, development tooling, and server support.
-3. Identify the corresponding mappings, APIs, Gradle plugins, and supported JDK versions.
-4. Create a minimal development project and record exact tool versions.
-5. Produce a clean build and launch a minimal client and dedicated server.
-6. Record the selected platform and all pinned versions in this document.
-
-Do not choose a loader or build plugin based only on familiarity with the 1.7.10 ecosystem.
+The project will implement its own recipe viewer and recipe-query infrastructure. JEI must not be added as a dependency. The viewer consumes Reforged-owned recipe and category metadata; optional external recipe integrations, if ever needed, must remain isolated behind adapters.
 
 ## Historical research policy
 
-Use GTNH 1.7.10 and related projects to understand gameplay semantics, recipes, material processing, progression, and proven design patterns. Treat legacy code and APIs as non-portable until independently reviewed for licensing, architecture, and modern API compatibility.
+Use GTNH 1.7.10 to understand gameplay semantics, recipes, material processing, and progression. Treat legacy code and APIs as non-portable until independently reviewed for licensing and modern compatibility.
 
 ## Verification record
 
-No modern platform, loader, or build toolchain has been selected or verified yet. No successful 26.3 build or launch is claimed by this document.
+NeoForge is selected, but exact NeoForge and Gradle versions are not pinned. No successful 26.3 build or launch is claimed.
