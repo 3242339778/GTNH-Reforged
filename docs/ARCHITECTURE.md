@@ -2,38 +2,48 @@
 
 ## Target
 
-The project targets Minecraft Java Edition 26.3 and will use a clean modern architecture. The historical GTNH 1.7.10 implementation is a source of gameplay and design research, not a dependency layer to be carried forward.
+The project targets Minecraft Java Edition 26.3 on NeoForge. Exact NeoForge and Gradle versions will be pinned after the minimal project prototype.
 
-The exact loader, mappings, APIs, and build system remain undecided until the platform research phase is complete.
+Historical GTNH 1.7.10 is a source of gameplay research, not a runtime dependency.
 
 ## Intended layers
 
-1. **Platform integration** — the selected 26.3 loader, lifecycle hooks, registries, networking, data systems, and client/server boundaries.
-2. **Compatibility adapters** — narrow integrations for explicitly selected third-party mods and APIs.
-3. **Reforged Core** — stable namespaced identifiers, lifecycle coordination, configuration, diagnostics, validation, and shared contracts.
-4. **Domain systems** — materials, recipes, machines, progression, quests, world content, and original gameplay.
-5. **Presentation layer** — user interfaces, tooltips, recipe discovery, and player-facing progression guidance.
+1. NeoForge platform integration — lifecycle hooks, registries, networking, data systems, and client/server boundaries.
+2. Compatibility adapters — narrow integrations for explicitly selected third-party mods and APIs.
+3. Reforged Core — identifiers, lifecycle coordination, configuration, diagnostics, validation, and shared contracts.
+4. Domain systems — materials, recipes, machines, progression, quests, world content, and original gameplay.
+5. Presentation — custom recipe viewer, tooltips, machine screens, search, and player-facing progression guidance.
+
+## First-party recipe viewer
+
+The recipe viewer is a Reforged-owned system and must not depend on JEI.
+
+- Recipe model: normalized categories, item/fluid inputs and outputs, conditions, processing time, energy, and machine requirements.
+- Query/index service: indexed lookup by ingredient, fluid, machine, category, and progression stage. Avoid full-database scans for every UI interaction.
+- Presentation: category browser, recipe details, ingredient reverse lookup, processing-chain navigation, and search.
+- Integration adapters: optional external recipe sources isolated from the viewer core.
+- Diagnostics: missing references, duplicate recipe IDs, invalid categories, and missing presentation assets.
+
+The viewer consumes a stable recipe-query API rather than directly inspecting every mod's internal registries. Cache invalidation and data reload behavior must be explicit and testable.
 
 ## Design rules
 
-- Do not make the architecture depend on a specific loader until the platform decision is documented.
-- Keep loader-specific and third-party types behind narrow adapters where practical.
-- Make registration, data loading, and lifecycle requirements explicit.
+- Keep NeoForge-specific types at the platform boundary where practical.
+- Keep third-party APIs behind narrow adapters.
 - Separate common/server logic from client-only presentation code.
-- Use stable namespaced identifiers and deterministic data definitions.
-- Fail early with actionable diagnostics for duplicate IDs, invalid recipes, and broken progression links.
+- Use stable namespaced IDs and deterministic data definitions.
+- Fail early with actionable diagnostics.
 - Avoid hidden global mutation and order-dependent registration.
-- Design performance-sensitive systems to be measurable and profile-driven.
-- Do not copy legacy APIs or assume 1.7.10 code can compile in the modern target.
+- Measure performance with profiling and repeatable benchmarks.
+- Keep JEI out of the dependency graph.
 
 ## First vertical slice
 
-After platform selection, build a minimal 26.3 development mod that:
+1. Create a minimal NeoForge 26.3 mod that loads on client and dedicated server.
+2. Register one Reforged-owned material and its forms.
+3. Define one processing recipe and expose it through a stable query API.
+4. Display that recipe in a minimal first-party viewer screen.
+5. Verify data reload, search responsiveness, and server/client separation.
+6. Build reproducibly from a clean checkout.
 
-1. Loads on the selected client and dedicated server.
-2. Registers one Reforged-owned material and a small set of forms.
-3. Defines a simple processing chain using the chosen modern data/recipe approach.
-4. Exposes clear diagnostics and automated validation.
-5. Can be built reproducibly from a clean checkout.
-
-All API names in early design notes are proposals until checked against the selected 26.3 toolchain.
+All API names remain proposals until checked against the selected 26.3 toolchain.
