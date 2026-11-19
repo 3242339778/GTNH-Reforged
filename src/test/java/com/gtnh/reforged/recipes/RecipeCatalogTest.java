@@ -8,6 +8,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.gtnh.reforged.materials.BuiltInMaterials;
+import com.gtnh.reforged.materials.MaterialCatalog;
 import com.gtnh.reforged.materials.MaterialForm;
 import com.gtnh.reforged.materials.MaterialId;
 
@@ -16,7 +18,7 @@ class RecipeCatalogTest {
 
     @Test
     void initialRecipeCanBeFoundByInputOutputAndMachine() {
-        RecipeCatalog catalog = BuiltInRecipes.createInitialCatalog();
+        RecipeCatalog catalog = initialRecipes();
 
         assertEquals(1, catalog.accepting(IRON, MaterialForm.DUST).size());
         assertEquals(1, catalog.producing(IRON, MaterialForm.INGOT).size());
@@ -26,20 +28,30 @@ class RecipeCatalogTest {
 
     @Test
     void duplicateRecipeIdsAreRejected() {
-        RecipeDefinition recipe = BuiltInRecipes.createInitialCatalog().all().getFirst();
+        RecipeDefinition recipe = initialRecipes().all().getFirst();
         assertThrows(IllegalArgumentException.class, () -> new RecipeCatalog(List.of(recipe, recipe)));
     }
 
     @Test
     void recipeCollectionsAreImmutable() {
-        RecipeDefinition recipe = BuiltInRecipes.createInitialCatalog().all().getFirst();
+        RecipeDefinition recipe = initialRecipes().all().getFirst();
         assertThrows(UnsupportedOperationException.class, () -> recipe.inputs().clear());
         assertThrows(UnsupportedOperationException.class, () ->
-                BuiltInRecipes.createInitialCatalog().accepting(IRON, MaterialForm.DUST).clear());
+                initialRecipes().accepting(IRON, MaterialForm.DUST).clear());
     }
 
     @Test
     void invalidRecipeAmountsAreRejected() {
         assertThrows(IllegalArgumentException.class, () -> new MaterialAmount(IRON, MaterialForm.DUST, 0));
+    }
+
+    @Test
+    void builtInRecipeRequiresItsMaterialAndForms() {
+        MaterialCatalog empty = new MaterialCatalog(List.of());
+        assertThrows(IllegalStateException.class, () -> BuiltInRecipes.createInitialCatalog(empty));
+    }
+
+    private static RecipeCatalog initialRecipes() {
+        return BuiltInRecipes.createInitialCatalog(BuiltInMaterials.createInitialCatalog());
     }
 }

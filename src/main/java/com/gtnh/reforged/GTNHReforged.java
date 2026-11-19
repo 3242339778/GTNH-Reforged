@@ -20,7 +20,7 @@ public final class GTNHReforged {
 
     public GTNHReforged(IEventBus modEventBus, ModContainer modContainer) {
         MaterialCatalog materialCatalog = BuiltInMaterials.createInitialCatalog();
-        RecipeCatalog recipeCatalog = BuiltInRecipes.createInitialCatalog();
+        RecipeCatalog recipeCatalog = BuiltInRecipes.createInitialCatalog(materialCatalog);
         LOGGER.info("GTNH: Reforged bootstrap initialized. Loaded {} material definition(s) and {} recipe definition(s).",
                 materialCatalog.size(), recipeCatalog.size());
     }
