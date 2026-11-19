@@ -2,7 +2,7 @@
 
 ## Pinned initial toolchain
 
-These versions match the current official NeoForge 26.3 ModDevGradle MDK snapshot checked on 2026-11-19. They are an initial project baseline, not yet a successful local build record.
+These versions match the official NeoForge 26.3 ModDevGradle MDK snapshot checked on 2026-11-19. They are an initial project baseline; CI is responsible for verifying the actual build.
 
 | Component | Version |
 |---|---|
@@ -16,7 +16,7 @@ These versions match the current official NeoForge 26.3 ModDevGradle MDK snapsho
 
 - Install a JDK 25 distribution and ensure `JAVA_HOME` points to it.
 - Install Gradle 9.2.1, or import the project in an IDE with Gradle support.
-- Use the Gradle project import/sync before attempting a launch.
+- Use Gradle project import/sync before attempting a launch.
 
 ## Common tasks
 
@@ -29,8 +29,12 @@ gradle runServer
 gradle runData
 ```
 
-The first Gradle invocation downloads the Minecraft and NeoForge development dependencies. A network connection and sufficient disk space are required.
+The first Gradle invocation downloads Minecraft and NeoForge development dependencies. A network connection and sufficient disk space are required.
+
+## Mod metadata
+
+The NeoForge descriptor template is stored in `src/main/templates/META-INF/neoforge.mods.toml`. The `generateModMetadata` task expands the Gradle properties and adds the generated descriptor to the main resource set. The `check` lifecycle also runs `verifyModMetadata`, which confirms that the packaged JAR contains the expected descriptor and no unresolved placeholders remain.
 
 ## Verification status
 
-The project skeleton and CI workflow are committed, but no successful build or game launch is claimed yet. The CI workflow is the first reproducible verification gate. Once a local/CI build passes, record the exact result here and add the Gradle wrapper files.
+The GitHub Actions workflow runs the Gradle build on Java 25 with Gradle 9.2.1. A successful build is not claimed until the workflow reports success. Client and dedicated-server launch checks remain separate follow-up gates.
