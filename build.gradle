@@ -22,15 +22,18 @@ neoForge {
     runs {
         client {
             client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
         server {
             server()
             programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
         gameTestServer {
             type = 'gameTestServer'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
         data {
@@ -53,6 +56,54 @@ neoForge {
 
 sourceSets.main.resources {
     srcDir 'src/generated/resources'
+}
+
+// Generate the NeoForge mod descriptor from the official MDK template.
+// The template lives outside src/main/resources so unresolved Gradle
+// placeholders cannot accidentally be packaged into the final JAR.
+def generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
+    def replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version
+    ]
+
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from 'src/main/templates'
+    into layout.buildDirectory.dir('generated/sources/modMetadata')
+}
+
+sourceSets.main.resources.srcDir(generateModMetadata)
+neoForge.ideSyncTask generateModMetadata
+
+// Fail the verification lifecycle if the built JAR is missing its expanded
+// NeoForge descriptor or still contains unresolved template placeholders.
+tasks.register('verifyModMetadata') {
+    dependsOn tasks.named('jar')
+
+    doLast {
+        def jarFile = tasks.named('jar').get().archiveFile.get().asFile
+        def descriptor = zipTree(jarFile).matching {
+            include 'META-INF/neoforge.mods.toml'
+        }.singleFile
+
+        def descriptorText = descriptor.getText('UTF-8')
+        if (descriptorText.contains('${')) {
+            throw new GradleException('Unexpanded placeholder found in META-INF/neoforge.mods.toml')
+        }
+        if (!descriptorText.contains('modId="gtnh_reforged"')) {
+            throw new GradleException('Expected gtnh_reforged mod descriptor was not packaged')
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyModMetadata')
 }
 
 tasks.withType(JavaCompile).configureEach {
