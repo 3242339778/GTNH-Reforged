@@ -83,21 +83,27 @@ neoForge.ideSyncTask generateModMetadata
 
 // Fail the verification lifecycle if the built JAR is missing its expanded
 // NeoForge descriptor or still contains unresolved template placeholders.
+def packagedJar = tasks.named('jar', Jar).flatMap { it.archiveFile }
+
 tasks.register('verifyModMetadata') {
     dependsOn tasks.named('jar')
+    inputs.file(packagedJar)
 
     doLast {
-        def jarFile = tasks.named('jar').get().archiveFile.get().asFile
-        def descriptor = zipTree(jarFile).matching {
-            include 'META-INF/neoforge.mods.toml'
-        }.singleFile
+        def jarFile = packagedJar.get().asFile
+        new java.util.zip.ZipFile(jarFile).withCloseable { archive ->
+            def descriptorEntry = archive.getEntry('META-INF/neoforge.mods.toml')
+            if (descriptorEntry == null) {
+                throw new GradleException('META-INF/neoforge.mods.toml is missing from the packaged JAR')
+            }
 
-        def descriptorText = descriptor.getText('UTF-8')
-        if (descriptorText.contains('${')) {
-            throw new GradleException('Unexpanded placeholder found in META-INF/neoforge.mods.toml')
-        }
-        if (!descriptorText.contains('modId="gtnh_reforged"')) {
-            throw new GradleException('Expected gtnh_reforged mod descriptor was not packaged')
+            def descriptorText = archive.getInputStream(descriptorEntry).getText('UTF-8')
+            if (descriptorText.contains('${')) {
+                throw new GradleException('Unexpanded placeholder found in META-INF/neoforge.mods.toml')
+            }
+            if (!descriptorText.contains('modId="gtnh_reforged"')) {
+                throw new GradleException('Expected gtnh_reforged mod descriptor was not packaged')
+            }
         }
     }
 }
