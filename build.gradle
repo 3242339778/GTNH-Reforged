@@ -106,6 +106,14 @@ tasks.named('check') {
     dependsOn tasks.named('verifyModMetadata')
 }
 
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.12.2'
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
