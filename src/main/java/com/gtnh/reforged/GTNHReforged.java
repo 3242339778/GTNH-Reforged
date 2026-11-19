@@ -7,6 +7,7 @@ import com.gtnh.reforged.materials.BuiltInMaterials;
 import com.gtnh.reforged.materials.MaterialCatalog;
 import com.gtnh.reforged.recipes.BuiltInRecipes;
 import com.gtnh.reforged.recipes.RecipeCatalog;
+import com.gtnh.reforged.registry.ModItems;
 
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -19,9 +20,11 @@ public final class GTNHReforged {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public GTNHReforged(IEventBus modEventBus, ModContainer modContainer) {
+        ModItems.ITEMS.register(modEventBus);
+
         MaterialCatalog materialCatalog = BuiltInMaterials.createInitialCatalog();
         RecipeCatalog recipeCatalog = BuiltInRecipes.createInitialCatalog(materialCatalog);
-        LOGGER.info("GTNH: Reforged bootstrap initialized. Loaded {} material definition(s) and {} recipe definition(s).",
+        LOGGER.info("GTNH: Reforged bootstrap initialized. Loaded {} material definition(s), {} recipe definition(s), and registered the initial iron dust/ingot item entries.",
                 materialCatalog.size(), recipeCatalog.size());
     }
 }
