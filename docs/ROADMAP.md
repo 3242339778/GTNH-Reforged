@@ -17,7 +17,8 @@
 - [ ] Classify each system: preserve, redesign, replace, or omit.
 - [ ] Define module boundaries and client/server responsibilities.
 - [ ] Define identifiers, registries, configuration, and diagnostics.
-- [ ] Specify recipe data model and recipe-query API.
+- [x] Draft the initial recipe data-model proposal.
+- [ ] Finalize the recipe-query API against the running 26.3 platform.
 - [ ] Specify custom viewer UX, indexing, and search behavior.
 
 ## Phase 2 — Minimal NeoForge platform
