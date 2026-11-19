@@ -1,0 +1,19 @@
+### Gradle
+.gradle/
+build/
+out/
+*.class
+
+### IDEs
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+### Minecraft development
+run/
+run-*/
+logs/
+crash-reports/

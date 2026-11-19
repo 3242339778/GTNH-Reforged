@@ -7,7 +7,9 @@
 - [x] Select NeoForge as the target mod loader.
 - [x] Decide to build a first-party recipe viewer; JEI is excluded.
 - [x] Publish preliminary Fabric / NeoForge platform research.
-- [ ] Pin exact NeoForge, Gradle, and mappings/toolchain versions.
+- [x] Pin an initial NeoForge / Gradle / Java toolchain from the official 26.3 MDK.
+- [x] Add a minimal NeoForge mod bootstrap and CI build workflow.
+- [ ] Verify a clean build and client/server launch.
 - [ ] Record licenses and provenance for research inputs.
 
 ## Phase 1 — Gameplay and architecture specification
@@ -19,7 +21,7 @@
 - [ ] Specify custom viewer UX, indexing, and search behavior.
 
 ## Phase 2 — Minimal NeoForge platform
-- [ ] Create a minimal Minecraft 26.3 NeoForge development project.
+- [x] Create a minimal Minecraft 26.3 NeoForge development project.
 - [ ] Build and launch a client.
 - [ ] Build and launch a dedicated server.
 - [ ] Add automated checks and reproducible build instructions.

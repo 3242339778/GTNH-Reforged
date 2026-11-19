@@ -2,14 +2,28 @@
 
 An independent, modernized reimplementation inspired by the GregTech: New Horizons (GTNH) experience.
 
-> Status: Early planning and architecture stage. This repository is not yet a playable modpack or a compilable mod.
-> Target: Minecraft Java Edition 26.3. This is a project target, not a claim of current compatibility or a working build.
+> **Status:** Early implementation. A minimal NeoForge bootstrap and build configuration are now present, but the project has not yet been verified by a successful build or game launch.
+>
+> **Target:** Minecraft Java Edition 26.3 on NeoForge.
 
 ## Project direction
 
-GTNH: Reforged targets Minecraft 26.3 on NeoForge with a clean modern architecture. Minecraft 1.7.10 and historical GTNH are research references only, not the runtime foundation.
+GTNH: Reforged is a clean modern re-architecture. Minecraft 1.7.10 and historical GTNH are research references only, not the runtime foundation.
 
 The goal is to preserve GTNH's defining experience: long-term progression, demanding survival, complex industrial chains, deep material processing, and meaningful technological milestones.
+
+## Technical baseline
+
+| Area | Decision |
+|---|---|
+| Minecraft | Java Edition 26.3 |
+| Loader | NeoForge 26.3.0.113 |
+| Java | 25 |
+| Build plugin | ModDevGradle 2.0.148 |
+| Gradle | 9.2.1 |
+| Recipe viewer | First-party Reforged implementation; JEI excluded |
+
+Exact versions are recorded in `gradle.properties`. See [Build Setup](docs/BUILD_SETUP.md).
 
 ## Principles
 
@@ -22,44 +36,17 @@ The goal is to preserve GTNH's defining experience: long-term progression, deman
 - Distinguish verified implementation facts from proposals and untested assumptions.
 - Respect upstream licenses and asset provenance.
 
-## Initial technical direction
-
-| Area | Decision | Status |
-|---|---|---|
-| Minecraft | Java Edition 26.3 | Project target; not yet implemented or verified |
-| Historical reference | GTNH / Minecraft 1.7.10 | Research only |
-| Java runtime | Java 25 or newer | Target requirement; verify against official metadata |
-| Mod loader | NeoForge | Selected; exact build and prototype still pending |
-| Build system / mappings | NeoForge-supported Gradle toolchain | Exact versions to be pinned |
-| Recipe viewer | Reforged-owned implementation | JEI excluded |
-| Development model | Independent clean re-architecture | Selected |
-
-These are planning decisions, not claims that the project currently builds or runs.
-
 ## Planned systems
 
-- ReforgedCore — lifecycle, identifiers, registries, configuration, and diagnostics.
-- ReforgedMaterials — material definitions, forms, properties, and processing semantics.
-- ReforgedRecipes — recipe declarations, validation, generation, and machine integration.
-- ReforgedRecipeViewer — custom recipe search, categories, ingredient display, machine/process views, and navigation.
-- ReforgedProgression — technology stages, unlock rules, and dependency graphs.
-- ReforgedQuests — quest integration and player-facing progression guidance.
-- NeoForge platform integration and narrow optional compatibility adapters.
+- **ReforgedCore** — lifecycle, identifiers, registries, configuration, and diagnostics.
+- **ReforgedMaterials** — material definitions, forms, properties, and processing semantics.
+- **ReforgedRecipes** — recipe declarations, validation, generation, and machine integration.
+- **ReforgedRecipeViewer** — custom recipe search, categories, ingredient display, machine/process views, and navigation.
+- **ReforgedProgression** — technology stages, unlock rules, and dependency graphs.
+- **ReforgedQuests** — quest integration and player-facing progression guidance.
 
-## Development roadmap
+## Current implementation
 
-1. Set up and verify a minimal NeoForge 26.3 client/server development project.
-2. Specify the GTNH gameplay systems and progression to preserve, redesign, replace, or omit.
-3. Define core lifecycle, identifiers, registries, configuration, diagnostics, and module boundaries.
-4. Implement one material and one processing chain.
-5. Build the first-party recipe viewer on top of a stable recipe query API.
-6. Connect machines, progression, and quests.
-7. Benchmark critical paths and publish reproducible builds.
+The first code entry point is deliberately minimal: it proves the mod bootstrap boundary without prematurely choosing material, machine, or recipe APIs.
 
-## Research status
-
-Historical GTNH research is reference material, not a modern implementation. Nothing is considered implemented or tested until a reproducible build or runtime test demonstrates it.
-
-## License
-
-No project-wide license has been selected. Until one is added, do not assume repository contents may be reused, redistributed, or relicensed.
+Nothing is considered implemented or tested until a reproducible build or runtime test demonstrates it.
