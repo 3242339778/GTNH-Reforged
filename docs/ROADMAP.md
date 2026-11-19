@@ -1,58 +1,58 @@
 # Roadmap
 
 ## Phase 0 — Direction and repository
-- [x] Create project repository.
-- [x] Add initial documentation and module layout.
-- [x] Select direct modernization for Minecraft 26.3 (Route A).
+- [x] Create project repository and initial documentation.
+- [x] Select direct modernization for Minecraft 26.3.
 - [x] Mark Minecraft 1.7.10 / historical GTNH as research-only.
-- [ ] Record authoritative Minecraft 26.3 Java/runtime requirements.
-- [x] Publish preliminary Fabric / NeoForge platform research (`docs/PLATFORM_RESEARCH_26.3.md`).
-- [ ] Complete the must-have dependency audit and choose the final 26.3 loader.
-- [ ] Select and pin the development toolchain.
-- [ ] Record licenses and provenance for all research inputs.
+- [x] Select NeoForge as the target mod loader.
+- [x] Decide to build a first-party recipe viewer; JEI is excluded.
+- [x] Publish preliminary Fabric / NeoForge platform research.
+- [ ] Pin exact NeoForge, Gradle, and mappings/toolchain versions.
+- [ ] Record licenses and provenance for research inputs.
 
 ## Phase 1 — Gameplay and architecture specification
 - [ ] Inventory defining GTNH gameplay systems and progression.
-- [ ] Classify each system: preserve, redesign, replace, or intentionally omit.
-- [ ] Define module boundaries, lifecycle, and client/server responsibilities.
-- [ ] Define stable namespaced IDs, registries, configuration, and diagnostics.
-- [ ] Document compatibility and dependency policy.
+- [ ] Classify each system: preserve, redesign, replace, or omit.
+- [ ] Define module boundaries and client/server responsibilities.
+- [ ] Define identifiers, registries, configuration, and diagnostics.
+- [ ] Specify recipe data model and recipe-query API.
+- [ ] Specify custom viewer UX, indexing, and search behavior.
 
-## Phase 2 — Minimal modern platform
-- [ ] Create a minimal Minecraft 26.3 development project.
+## Phase 2 — Minimal NeoForge platform
+- [ ] Create a minimal Minecraft 26.3 NeoForge development project.
 - [ ] Build and launch a client.
 - [ ] Build and launch a dedicated server.
 - [ ] Add automated checks and reproducible build instructions.
 
-## Phase 3 — Material vertical slice
-- [ ] Specify modern MaterialDefinition and MaterialForms concepts.
-- [ ] Implement material registration using the selected platform.
-- [ ] Add one test material and its initial forms.
+## Phase 3 — Material and recipe vertical slice
+- [ ] Specify MaterialDefinition and MaterialForms concepts.
+- [ ] Implement material registration and one test material.
 - [ ] Define and validate a small processing chain.
+- [ ] Expose recipe metadata through the query API.
 - [ ] Verify behavior in a running 26.3 instance.
 
-## Phase 4 — Recipes, machines, and progression
-- [ ] Design recipe declaration and validation.
-- [ ] Implement initial machine/processing integration.
+## Phase 4 — Custom recipe viewer
+- [ ] Implement recipe category and detail models.
+- [ ] Implement indexed item/fluid/machine/category lookup.
+- [ ] Build category browser, recipe detail, and ingredient navigation.
+- [ ] Add cache invalidation and data-reload handling.
+- [ ] Profile search and UI performance with a large synthetic recipe set.
+- [ ] Verify JEI is absent from dependencies.
+
+## Phase 5 — Machines and progression
+- [ ] Implement initial machine and processing integration.
 - [ ] Detect duplicate, invalid, and unreachable recipes.
 - [ ] Implement progression dependencies and unlock rules.
-- [ ] Connect progression to quest documentation.
+- [ ] Connect progression to quest guidance.
 
-## Phase 5 — Ecosystem and performance
-- [ ] Audit candidate mod integrations and conflicts.
-- [ ] Evaluate recipe-viewer options available for the chosen loader/version.
+## Phase 6 — Ecosystem, performance, and release
+- [ ] Audit candidate integrations and licenses.
 - [ ] Benchmark loading, recipe lookup, world generation, and UI paths.
 - [ ] Run regression, multiplayer, and long-session tests.
-
-## Phase 6 — Playtesting and release
-- [ ] Complete a representative progression slice.
-- [ ] Publish installation and server setup documentation.
-- [ ] Record known issues and compatibility matrix.
-- [ ] Produce reproducible test builds before public release.
+- [ ] Publish setup documentation, known issues, and reproducible builds.
 
 ## Non-goals
-
 - Blindly porting the 1.7.10 codebase.
 - Claiming every historical GTNH mod has a 26.3 equivalent.
-- Treating Java 17–26 as a guarantee that MC 26.3 runs on all those JDKs.
-- Optimizing performance solely by removing large groups of mods.
+- Depending on JEI for recipe browsing.
+- Optimizing performance solely by removing groups of mods.
