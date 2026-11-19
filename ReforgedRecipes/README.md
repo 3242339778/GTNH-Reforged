@@ -1,16 +1,16 @@
 # ReforgedRecipes
 
-Recipe declarations, validation, controlled generation, and machine integration for GTNH-Reforged.
+Recipe declarations, validation, controlled generation, and machine integration.
 
-## Responsibilities
-- Define stable, namespaced recipe identifiers and categories.
-- Represent item/fluid inputs and outputs, machine requirements, processing time, energy, and relevant conditions.
-- Validate duplicate IDs, missing references, invalid quantities, and broken machine/category links.
-- Expose a stable query API for the first-party ReforgedRecipeViewer.
-- Support deterministic data reload and explicit cache invalidation.
-- Keep external recipe-system integrations behind optional adapters.
+## Current implementation
+- Immutable recipe identity and recipe definition types.
+- Material-form input/output quantities with positive-amount validation.
+- Immutable recipe catalog with prebuilt indexes for input material, output material, and machine ID.
+- Initial data-only example: iron dust → iron ingot in a basic electric furnace.
+- Unit tests for reverse lookup, duplicate IDs, immutable results, and invalid quantities.
 
 ## Dependency policy
-The first-party ReforgedRecipeViewer is the intended recipe discovery UI. JEI is explicitly excluded and must not be added as a dependency. The recipe model and query API must not depend on any viewer implementation.
+The recipe model is independent of the recipe viewer and Minecraft item classes. The first-party ReforgedRecipeViewer will consume its query API. JEI is explicitly excluded; EMI and REI are not core dependencies.
 
-No implementation is present yet. API names and data structures remain proposals until implemented and tested against NeoForge 26.3.
+## Current limitation
+The initial recipe refers to logical material forms and a machine identifier only. It does not yet register Minecraft items, a furnace block/entity, or an executable in-game recipe. Those platform adapters are the next integration step.
