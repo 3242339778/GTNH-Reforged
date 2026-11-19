@@ -1,3 +1,5 @@
 {
-  "modmenu.nameTranslation.gtnh_reforged": "GTNH: Reforged"
+  "modmenu.nameTranslation.gtnh_reforged": "GTNH: Reforged",
+  "item.gtnh_reforged.iron_dust": "Iron Dust",
+  "item.gtnh_reforged.iron_ingot": "Iron Ingot"
 }

@@ -1,3 +1,5 @@
 {
-  "modmenu.nameTranslation.gtnh_reforged": "GTNH：重铸"
+  "modmenu.nameTranslation.gtnh_reforged": "GTNH：重铸",
+  "item.gtnh_reforged.iron_dust": "铁粉",
+  "item.gtnh_reforged.iron_ingot": "铁锭"
 }
