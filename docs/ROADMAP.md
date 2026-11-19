@@ -6,7 +6,8 @@
 - [x] Select direct modernization for Minecraft 26.3 (Route A).
 - [x] Mark Minecraft 1.7.10 / historical GTNH as research-only.
 - [ ] Record authoritative Minecraft 26.3 Java/runtime requirements.
-- [ ] Compare 26.3 mod loaders, mappings, APIs, and ecosystem support.
+- [x] Publish preliminary Fabric / NeoForge platform research (`docs/PLATFORM_RESEARCH_26.3.md`).
+- [ ] Complete the must-have dependency audit and choose the final 26.3 loader.
 - [ ] Select and pin the development toolchain.
 - [ ] Record licenses and provenance for all research inputs.
 
