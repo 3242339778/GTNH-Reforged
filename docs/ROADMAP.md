@@ -18,6 +18,7 @@
 - [ ] Define module boundaries and client/server responsibilities.
 - [ ] Define identifiers, registries, configuration, and diagnostics.
 - [x] Draft the initial recipe data-model proposal.
+- [x] Implement the first pure-domain material catalog and validation tests.
 - [ ] Finalize the recipe-query API against the running 26.3 platform.
 - [ ] Specify custom viewer UX, indexing, and search behavior.
 
@@ -28,8 +29,8 @@
 - [ ] Add automated checks and reproducible build instructions.
 
 ## Phase 3 — Material and recipe vertical slice
-- [ ] Specify MaterialDefinition and MaterialForms concepts.
-- [ ] Implement material registration and one test material.
+- [x] Define the first material identity and logical forms.
+- [ ] Register the material forms as Minecraft content.
 - [ ] Define and validate a small processing chain.
 - [ ] Expose recipe metadata through the query API.
 - [ ] Verify behavior in a running 26.3 instance.
