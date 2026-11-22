@@ -7,6 +7,7 @@ This audit maps the pure-Java graph core to the actual GT5-Unofficial **5.09.54.
 Primary upstream sources:
 
 - [BaseMetaPipeEntity.java](https://github.com/GTNewHorizons/GT5-Unofficial/blob/5.09.54.275/src/main/java/gregtech/api/metatileentity/BaseMetaPipeEntity.java)
+- [BaseTileEntity.java](https://github.com/GTNewHorizons/GT5-Unofficial/blob/5.09.54.275/src/main/java/gregtech/api/metatileentity/BaseTileEntity.java)
 - [MetaPipeEntity.java](https://github.com/GTNewHorizons/GT5-Unofficial/blob/5.09.54.275/src/main/java/gregtech/api/metatileentity/MetaPipeEntity.java)
 - [MTECable.java](https://github.com/GTNewHorizons/GT5-Unofficial/blob/5.09.54.275/src/main/java/gregtech/api/metatileentity/implementations/MTECable.java)
 - [GenerateNodeMap.java](https://github.com/GTNewHorizons/GT5-Unofficial/blob/5.09.54.275/src/main/java/gregtech/api/graphs/GenerateNodeMap.java)
@@ -44,13 +45,30 @@ The pure-Java graph state already models shared root identity, topology version,
 
 The original graph walker asks the pipe for the tile on a connected side. It does not imply that a missing or unloaded neighbor is an air block.
 
-The new adapter must distinguish:
+Do not force-load chunks to answer graph questions. The exact legacy behavior is operation-specific:
 
-1. A loaded neighboring position with no block entity.
-2. A loaded neighboring position with a block entity.
-3. A position in an unloaded chunk.
+- `BaseTileEntity.getTileEntityAtSide` uses a six-entry neighbor cache. On a cross-chunk query it clears that side's cache first, specifically so a cached "no tile" marker cannot survive chunk loading. With the default `ignoreUnloadedChunks = true`, it returns null if the target across the chunk border is not loaded. Within the same chunk it reads the world directly. It also clears and retries an invalid cached tile entity.
+- That method returns null both for a loaded position without a tile entity and for an unloaded cross-chunk position. The graph walk therefore historically treats both as "no adjacent tile" at this API boundary; a new implementation must not invent a different graph endpoint rule merely because its internal lookup can tell the cases apart.
+- `MetaPipeEntity.connect(side)` has a separate, important tri-state result: positive means connected, zero means not connectable, and **-1 means the target chunk is unloaded**. `checkConnections()` disconnects a side only when `connect(side) == 0`; it preserves the existing connection when the result is -1. Collapsing unloaded into ordinary non-connectable would silently disconnect cables at chunk borders.
+- `GenerateNodeMapPower.getAdjacentTileEntityIfLoaded` checks `blockExists` only when the adjacent position crosses a chunk boundary; otherwise it calls `getTileEntity` directly. This helper is used in the power consumer discovery path.
+- IC2 sink discovery passes a null adjacent tile to `acceptsEnergyFrom` when that cross-chunk target is unloaded. Do not replace this with forced chunk access or a speculative lookup.
 
-Do not force-load chunks to answer graph questions. The original connection-update path also checks chunk existence before reading a neighbor across a chunk boundary. The IC2 consumer adapter has an additional loaded-neighbor rule: when its adjacent lookup crosses a chunk boundary and the target block is not loaded, it passes a null adjacent tile to `acceptsEnergyFrom`.
+The NeoForge host boundary should expose enough information to preserve all these cases, for example a lookup result with `LOADED_WITH_BLOCK_ENTITY`, `LOADED_WITHOUT_BLOCK_ENTITY`, and `UNLOADED`. The legacy graph-walk adapter can deliberately map the latter two to the same null behavior where the 1.7.10 caller did so, while connection checking must retain the distinct unloaded result (-1 semantics).
+
+### Neighbor cache and unloaded-chunk semantics
+
+The world adapter must not treat all null-like lookups as interchangeable:
+
+| Upstream call path | Loaded empty position | Unloaded cross-chunk position | Required behavior |
+|---|---|---|---|
+| `BaseTileEntity.getTileEntityAtSide` | null | null when `ignoreUnloadedChunks` is true | Same graph-facing null result, but clear cross-chunk cache before returning |
+| `MetaPipeEntity.connect(side)` | 0 if no valid connection | -1 | `checkConnections` disconnects only on 0; -1 preserves the old bit |
+| `GenerateNodeMapPower.getAdjacentTileEntityIfLoaded` | world lookup result (usually null) | null | Check loaded status only across chunk coordinates |
+| IC2 sink discovery | actual adjacent tile | null passed to `acceptsEnergyFrom` | Preserve the IC2 callback's null argument |
+
+`BaseTileEntity` also clears cached null markers on neighbor-block changes, tile validation, invalidation, and chunk unload. The cross-chunk cache is invalidated before the loaded check because loading a neighboring chunk does not necessarily issue the block update that would otherwise clear a cached empty marker.
+
+This cache is a host-tile concern, not a graph-core concern. Keep it out of `LegacyPowerTopologyWalker`; implement it in the future ported cable/base block entity or a narrowly scoped host neighbor-cache helper.
 
 ### Connection and occupied-side semantics
 
@@ -87,12 +105,12 @@ A generic NeoForge energy capability is not a drop-in replacement for these cons
 | Cable `nodePath` binding | `LegacyPowerPipeBinding` / `LegacyPowerCableState` | Store/retrieve the exact path object and update connection snapshot |
 | `getNodeMap()` fallback | `LegacyPowerTopologyAccess.getNodeMapOwner` / `LegacyPowerTransferAccess.getNodeMapOwner` | Prefer node; otherwise resolve the bound path's graph owner |
 | Six-way connection state | `LegacyPowerTopologyAccess.isConnected` | Use the real cable connection state and correct direction mapping |
-| Neighbor lookup | `LegacyPowerTopologyAccess.getNeighbor` | Return null for absent or unloaded neighbors without force-loading |
+| Neighbor lookup | `LegacyPowerTopologyAccess.getNeighbor` | Preserve the legacy null mapping for graph walking; the concrete world boundary must also expose loaded-empty vs unloaded for connection-check and consumer-specific callers |
 | Pipe classification | `LegacyPowerTopologyAccess.isPipe` | Only GT power cables are traversable, not every pipe/fluid pipe |
 | Power-specific node factories | `LegacyPowerNodeBuildAccess` | Construct the right pipe/dead-end/consumer node types |
 | Path creation | `LegacyPowerNodeBuildAccess.createPath` | Bind every cable in order; preserve identity and owner |
 | Lock refresh | `reloadPipeLocks` / `reloadPathLocks` | Recompute real cable-side lock state after graph installation |
-| Cable connection snapshot / occupied sides | `LegacyPowerCableState` | Preserve bind-time connection bits and detect endpoint occupancy changes independently |
+| Cable connection snapshot / occupied sides | `LegacyPowerCableState` | Preserve bind-time connection bits and detect endpoint occupancy changes independently; neighbor-cache invalidation belongs to the host tile layer |
 | Cable invalidation lifecycle | `LegacyPowerCableState` | Distinguish shared-root invalidation, immediate graph clearing, and affected-path invalidation |
 | Consumer injection | `LegacyPowerConsumerAccess` | Preserve each consumer family's original acceptance and injection behavior |
 | Server tick and side | `LegacyPowerTransferAccess` | Use logical server state and the same server tick source as graph invalidation |
@@ -110,11 +128,11 @@ A generic NeoForge energy capability is not a drop-in replacement for these cons
 ## Recommended implementation order
 
 1. Integrate `LegacyPowerCableState` into the ported cable/base-tile state owner: node/path bindings, connection bits, occupied-side snapshot, and invalidation hooks.
-2. Implement a read-only world adapter for loaded-neighbor lookup, connection checks, pipe classification, and energy-source detection.
+2. Implement a read-only world adapter with explicit loaded-neighbor status, legacy graph-walk null mapping, six-side neighbor-cache invalidation, connection-check tri-state semantics, pipe classification, and energy-source detection.
 3. Implement path binding and lock reload against the new cable objects.
 4. Implement power-specific node factories and consumer discovery one family at a time.
 5. Wire the source transfer coordinator to the logical server tick and cable source flag.
-6. Add GameTests for loaded/unloaded chunk boundaries, endpoint appearance/disappearance without connection-bit changes, cable removal, graph refresh timing, and partial-transfer retry.
+6. Add GameTests for loaded/unloaded chunk boundaries (including connect()'s -1 preserve-connection result), neighbor-cache invalidation after chunk load, endpoint appearance/disappearance without connection-bit changes, cable removal, graph refresh timing, and partial-transfer retry.
 7. Only then connect external NeoForge energy capabilities and validate actual in-game behavior.
 
 ## Status
