@@ -28,7 +28,7 @@ public final class LegacyPowerNodeBuilder {
     /** Builds a graph starting at the supplied tile, as upstream does with no previous node. */
     public LegacyPowerGraphNode build(Object firstTile, LegacyPowerDirection enteredFrom) {
         Objects.requireNonNull(enteredFrom, "enteredFrom");
-        LegacyPowerGraphNode root = generateNode(firstTile, null, 0, List.of(), enteredFrom);
+        LegacyPowerGraphNode root = generateNode(firstTile, null, 1, List.of(), enteredFrom);
         return root;
     }
 
