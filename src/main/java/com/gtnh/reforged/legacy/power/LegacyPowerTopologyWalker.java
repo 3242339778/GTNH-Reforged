@@ -30,6 +30,12 @@ public final class LegacyPowerTopologyWalker {
      *         disconnected incoming side, or exhausted connected directions
      */
     public WalkResult walk(Object firstTile, LegacyPowerDirection side) {
+        WalkResult result = walkDetailed(firstTile, side);
+        return result == null || result.endpoint() == null ? null : result;
+    }
+
+    /** Also retains intermediate pipes when upstream returns no endpoint. */
+    public WalkResult walkDetailed(Object firstTile, LegacyPowerDirection side) {
         Objects.requireNonNull(side, "side");
         Object tile = firstTile;
         LegacyPowerDirection enteredFrom = side;
@@ -38,7 +44,7 @@ public final class LegacyPowerTopologyWalker {
         walk:
         while (true) {
             if (tile == null) {
-                return null;
+                return new WalkResult(null, enteredFrom, intermediatePipes);
             }
             if (!access.isPipe(tile)) {
                 return new WalkResult(tile, enteredFrom, intermediatePipes);
@@ -46,18 +52,18 @@ public final class LegacyPowerTopologyWalker {
 
             Object node = access.getNode(tile);
             if (node != null && access.containsNode(node)) {
-                return null;
+                return new WalkResult(null, enteredFrom, intermediatePipes);
             }
 
             LegacyPowerDirection previousSide = enteredFrom.opposite();
             if (!access.isConnected(tile, previousSide)) {
-                return null;
+                return new WalkResult(null, enteredFrom, intermediatePipes);
             }
 
             Object owner = access.getNodeMapOwner(tile);
             if (owner != null) {
                 if (access.containsMapOwner(owner)) {
-                    return null;
+                    return new WalkResult(null, enteredFrom, intermediatePipes);
                 }
                 // Upstream retires the other graph before replacing bindings.
                 access.clearNodeMap(owner, -1);
@@ -84,7 +90,7 @@ public final class LegacyPowerTopologyWalker {
                 }
                 return new WalkResult(tile, enteredFrom, intermediatePipes);
             }
-            return null;
+            return new WalkResult(null, enteredFrom, intermediatePipes);
         }
     }
 
@@ -100,7 +106,6 @@ public final class LegacyPowerTopologyWalker {
 
     public record WalkResult(Object endpoint, LegacyPowerDirection enteredFrom, List<Object> intermediatePipes) {
         public WalkResult {
-            Objects.requireNonNull(endpoint, "endpoint");
             Objects.requireNonNull(enteredFrom, "enteredFrom");
             intermediatePipes = List.copyOf(intermediatePipes);
         }
