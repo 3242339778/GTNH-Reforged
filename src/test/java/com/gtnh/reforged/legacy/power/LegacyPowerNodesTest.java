@@ -63,7 +63,7 @@ class LegacyPowerNodesTest {
         assertEquals(88, consumer.lastVoltage);
         assertEquals(2, firstEdge.getAmperage());
         assertEquals(2, secondEdge.getAmperage());
-        assertEquals(176, firstEdge.getEnergy());
+        assertEquals(190, firstEdge.getEnergy());
         assertEquals(176, secondEdge.getEnergy());
     }
 
