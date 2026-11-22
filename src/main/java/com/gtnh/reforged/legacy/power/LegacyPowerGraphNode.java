@@ -24,6 +24,8 @@ public final class LegacyPowerGraphNode implements LegacyPowerPathOwner {
     private int nodeValue;
     private int highestNodeValue;
     private boolean invalid;
+    private LegacyPowerPath returnPath;
+    private LegacyPowerPathLock returnLock;
 
     public LegacyPowerGraphNode(int nodeValue, Object tileIdentity,
         LegacyPowerNodeBinding pipeBinding) {
@@ -93,10 +95,9 @@ public final class LegacyPowerGraphNode implements LegacyPowerPathOwner {
     }
 
     public void setPath(LegacyPowerDirection side, LegacyPowerPath path) {
+        // One edge path is referenced by both endpoint nodes. Its owner remains
+        // the node that created it, as in upstream NodePath.setNodeMap.
         paths[side.ordinalIndex()] = path;
-        if (path != null) {
-            path.setNodeMapOwner(this);
-        }
     }
 
     public LegacyPowerPathLock getLock(LegacyPowerDirection side) {
@@ -105,6 +106,19 @@ public final class LegacyPowerGraphNode implements LegacyPowerPathOwner {
 
     public void setLock(LegacyPowerDirection side, LegacyPowerPathLock lock) {
         locks[side.ordinalIndex()] = lock;
+    }
+
+    public LegacyPowerPath getReturnPath() {
+        return returnPath;
+    }
+
+    public LegacyPowerPathLock getReturnLock() {
+        return returnLock;
+    }
+
+    public void setReturnValues(LegacyPowerPath path, LegacyPowerPathLock lock) {
+        this.returnPath = path;
+        this.returnLock = lock;
     }
 
     public LegacyPowerPath getSelfPath() {
