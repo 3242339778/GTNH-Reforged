@@ -54,5 +54,5 @@ The coordinator's end-to-end partial-injection retry still requires a dedicated 
 - Upstream audit: completed against 5.09.54.275.
 - Coordinator implementation: committed; local Gradle verification passed.
 - UNKNOWN direction sentinel and regression tests: committed; local Gradle verification passed.
-- End-to-end stale retry test: committed; awaiting local Gradle verification.
+- End-to-end stale retry test: committed; local Gradle verification passed on the development machine (both the focused coordinator test task and the complete `legacy.power.*Test` task reported `BUILD SUCCESSFUL`).
 - Host integration: not implemented.
