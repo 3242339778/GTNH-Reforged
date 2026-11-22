@@ -3,7 +3,6 @@ package com.gtnh.reforged.legacy.power;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +15,9 @@ class LegacyPowerNodeBuilderTest {
         FakeTile rootTile = FakeTile.pipe();
         FakeTile consumerTile = FakeTile.consumer();
         connect(rootTile, LegacyPowerDirection.EAST, consumerTile);
+        // A second connected-but-unloaded side makes this a normal pipe node;
+        // upstream skips its absent neighbor during branch expansion.
+        rootTile.connections.put(LegacyPowerDirection.NORTH, true);
 
         FakeAccess access = new FakeAccess();
         LegacyPowerNodeBuilder builder = new LegacyPowerNodeBuilder(access);
