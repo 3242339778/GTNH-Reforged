@@ -31,6 +31,10 @@ public enum LegacyPowerDirection {
         };
     }
 
+    public static LegacyPowerDirection fromOrdinalIndex(int ordinalIndex) {
+        return VALUES[ordinalIndex];
+    }
+
     public static LegacyPowerDirection[] orderedValues() {
         return VALUES.clone();
     }
