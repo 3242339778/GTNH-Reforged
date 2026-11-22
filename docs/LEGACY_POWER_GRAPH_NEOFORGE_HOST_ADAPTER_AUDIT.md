@@ -121,7 +121,7 @@ A generic NeoForge energy capability is not a drop-in replacement for these cons
 
 - Upstream host-state audit: completed against GT5-Unofficial 5.09.54.275.
 - Pure-Java graph core: locally verified by the development machine's complete `legacy.power.*Test` Gradle test task.
-- `LegacyPowerCableState`: implemented; local Gradle verification pending.
+- `LegacyPowerCableState`: implemented; the focused `LegacyPowerCableStateTest` and complete `legacy.power.*Test` tasks both reported `BUILD SUCCESSFUL` on the development machine.
 - Concrete NeoForge cable/block-entity host: not implemented.
 - Concrete GT consumer-family adapters: not implemented.
 - In-game/GameTest verification: not implemented.
