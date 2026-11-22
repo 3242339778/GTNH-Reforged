@@ -1,7 +1,7 @@
 package com.gtnh.reforged.legacy.power;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
@@ -65,18 +65,32 @@ class LegacyPowerTransferCoordinatorTest {
 
     private static final class FakeConsumer implements LegacyPowerConsumerAccess {
         private final boolean needsEnergy;
+        private final LegacyPowerGraphNode node =
+            new LegacyPowerGraphNode(2, new Object(), null);
         private int needsEnergyCalls;
 
         private FakeConsumer(boolean needsEnergy) {
             this.needsEnergy = needsEnergy;
         }
 
-        @Override public LegacyPowerGraphNode getNode() { return null; }
+        @Override public LegacyPowerGraphNode getNode() { return node; }
         @Override public boolean needsEnergy() {
             needsEnergyCalls++;
             return needsEnergy;
         }
         @Override public long injectEnergy(long voltage, long maxAmps) { return 0; }
+    }
+
+    private static final class FakeCable implements LegacyPowerCableAccess {
+        private LegacyPowerPath nodePath;
+
+        @Override public long getAmperageRating() { return 64; }
+        @Override public long getVoltageRating() { return 512; }
+        @Override public long getCableLossPerMeter() { return 0; }
+        @Override public boolean hasBaseTile() { return true; }
+        @Override public void setToFire() {}
+        @Override public LegacyPowerPath getNodePath() { return nodePath; }
+        @Override public void setNodePath(LegacyPowerPath path) { nodePath = path; }
     }
 
     private static final class FakeAccess implements LegacyPowerTransferAccess {
@@ -85,6 +99,7 @@ class LegacyPowerTransferCoordinatorTest {
         private boolean connected = true;
         private boolean energySource;
         private long tick = 0;
+        private final AtomicInteger pathTick = new AtomicInteger();
         private LegacyPowerGraphNode node;
         private LegacyPowerGraphNode owner;
         private List<? extends LegacyPowerConsumerAccess> consumers = List.of();
@@ -113,6 +128,19 @@ class LegacyPowerTransferCoordinatorTest {
             buildCalls++;
             node = new LegacyPowerGraphNode(1, sourceCable, null);
             owner = node;
+
+            // Build a minimal but real PowerNodes route so the test exercises
+            // first-list warm-up without passing a consumer with a null node.
+            LegacyPowerConsumerAccess first = consumers.isEmpty() ? null : consumers.get(0);
+            if (first != null) {
+                LegacyPowerGraphNode consumerNode = first.getNode();
+                node.setHighestNodeValue(consumerNode.getNodeValue());
+                node.setNeighbor(LegacyPowerDirection.EAST, consumerNode);
+                LegacyPowerNodePath edge = new LegacyPowerNodePath(
+                    List.of(new FakeCable()), pathTick::get);
+                node.setPath(LegacyPowerDirection.EAST, edge);
+                node.setLock(LegacyPowerDirection.EAST, edge.getLock());
+            }
         }
         @Override public boolean isPowerNode(LegacyPowerGraphNode candidate) { return candidate != null; }
         @Override public List<? extends LegacyPowerConsumerAccess> getConsumers(LegacyPowerGraphNode root) {
