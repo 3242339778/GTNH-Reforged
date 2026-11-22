@@ -56,7 +56,8 @@ class LegacyPowerNodeBuilderTest {
         LegacyPowerGraphNode root = builder.build(rootTile, LegacyPowerDirection.DOWN);
 
         assertEquals(2, builder.getConsumers().size());
-        assertEquals(2, builder.getNodeMap().size());
+        // The map contains the root pipe node plus both consumer nodes.
+        assertEquals(3, builder.getNodeMap().size());
         assertEquals(2, root.getHighestNodeValue());
         assertEquals(1, builder.getConsumers().get(0).getNodeValue());
         assertEquals(2, builder.getConsumers().get(1).getNodeValue());
