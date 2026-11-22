@@ -27,7 +27,7 @@ Primary upstream methods:
 3. New nodes join the previous node's current graph root, bind to the pipe, and create a self path.
 4. Incoming edge paths are owned by the node that creates them.
 5. The same edge path object is referenced by both endpoint nodes. Its owner must **not** be reassigned when the previous node installs its return path.
-6. The edge path and both endpoint direction slots share the same Lock identity.
+6. For pipe endpoints, the edge path and both endpoint direction slots share the same Lock identity. For ConsumerNode endpoints, upstream stores the Lock on the path and returns it to the parent, but does not populate the consumer's direction-lock slot.
 7. A child returns its path/lock through the previous node's return-values pair; the parent installs them in its outgoing direction slot.
 8. Branches are visited in legacy direction order. Each subsequent branch starts after the highest node value produced by the previous branch.
 9. A loop-closing run with no endpoint becomes an unrouted path owned by the node whose branch discovered it.
