@@ -12,6 +12,7 @@ Implemented a pure-Java coordinator for the outer transfer lifecycle audited fro
 ## Preserved upstream behavior
 
 - Reject non-positive amperage, client-side calls, and disconnected sides except UNKNOWN before marking the cable as an energy source.
+- `LegacyPowerDirection.UNKNOWN` is a non-indexed sentinel appended after the six cardinal directions; `orderedValues()` and `fromOrdinalIndex(0..5)` still expose exactly the original six-direction order.
 - Energy-source marking is sticky and happens before graph refresh/build.
 - Refresh an existing map owner only when the 10-tick refresh condition is due.
 - Build a graph only when the source cable has no node.
@@ -41,7 +42,7 @@ The coordinator deliberately does not know Minecraft, NeoForge, IC2, RF, Galacti
 
 Tests added for:
 - guards before source marking;
-- UNKNOWN side bypass;
+- UNKNOWN side bypass, while remaining outside the six-direction topology arrays;
 - first consumer warm-up includes consumers without checking `needsEnergy`;
 - later list construction filters by `needsEnergy`;
 - delayed graph refresh clears and rebuilds the source graph.
@@ -52,5 +53,6 @@ The coordinator's end-to-end partial-injection retry still requires a dedicated 
 
 - Upstream audit: completed against 5.09.54.275.
 - Coordinator implementation: committed; local Gradle verification pending.
+- UNKNOWN direction sentinel and regression tests: committed; local Gradle verification pending.
 - Host integration: not implemented.
 - End-to-end stale retry test: pending.
