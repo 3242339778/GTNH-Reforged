@@ -59,8 +59,7 @@ class LegacyPowerGraphStateTest {
         secondChild.joinNodeMap(firstChild);
 
         assertSame(firstRoot, secondChild.getNodeMapRoot());
-        assertSame(secondRoot, secondChild.getNodeMapRoot() == secondRoot
-            ? secondRoot : secondRoot); // secondRoot remains an independent root
+        assertSame(secondRoot, secondRoot.getNodeMapRoot());
         assertTrue(secondRoot.isNodeMapValid());
 
         firstRoot.invalidateNodeMap(42L);
