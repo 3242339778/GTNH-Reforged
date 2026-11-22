@@ -82,7 +82,7 @@ class LegacyAveragePerTickCounterTest {
         counter.addValue(9); // tick 1
         tick.set(2);
         counter.addValue(6); // tick 2
-        tick.set(4);
+        tick.set(5);
 
         assertEquals(2.0, counter.getAverage()); // tick 1 expired; 6 / 3
     }
