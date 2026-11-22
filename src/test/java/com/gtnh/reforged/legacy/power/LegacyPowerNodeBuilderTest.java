@@ -87,6 +87,30 @@ class LegacyPowerNodeBuilderTest {
         assertEquals(3, builder.getNodeMap().size());
     }
 
+    @Test
+    void recordsLoopClosingCableRunsAsUnroutedPaths() {
+        FakeTile rootTile = FakeTile.pipe();
+        FakeTile loopPipe = FakeTile.pipe();
+        connect(rootTile, LegacyPowerDirection.NORTH, loopPipe);
+        connect(rootTile, LegacyPowerDirection.EAST, loopPipe);
+
+        FakeAccess access = new FakeAccess();
+        LegacyPowerNodeBuilder builder = new LegacyPowerNodeBuilder(access);
+        LegacyPowerGraphNode root = builder.build(rootTile, LegacyPowerDirection.DOWN);
+
+        assertNotNull(root);
+        assertEquals(2, root.getUnroutedPaths().size());
+        assertTrue(root.getUnroutedPaths().stream().allMatch(
+            path -> path.getNodeMapOwner() == root && path.getPipes().size() == 1));
+        LegacyPowerPath currentlyBoundPath = loopPipe.binding.getNodePath();
+        assertNotNull(currentlyBoundPath);
+        assertTrue(root.getUnroutedPaths().contains(currentlyBoundPath));
+
+        LegacyPowerGraphCleaner.clearNodeMap(root, -1);
+        assertTrue(root.getUnroutedPaths().isEmpty());
+        assertNull(loopPipe.binding.getNodePath());
+    }
+
     private static void connect(FakeTile first, LegacyPowerDirection side, FakeTile second) {
         first.connections.put(side, true);
         first.neighbors.put(side, second);
