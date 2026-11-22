@@ -14,7 +14,7 @@ import java.util.Objects;
 public final class LegacyPowerPath {
 
     private final List<LegacyPowerPipeBinding> pipes;
-    private final LegacyPowerPathLock lock = new LegacyPowerPathLock();
+    private LegacyPowerPathLock lock = new LegacyPowerPathLock();
     private LegacyPowerPathOwner nodeMapOwner;
     private boolean valid = true;
 
@@ -77,5 +77,10 @@ public final class LegacyPowerPath {
 
     public LegacyPowerPathLock getLock() {
         return lock;
+    }
+
+    /** Installs the shared endpoint lock used by the legacy graph. */
+    public void setLock(LegacyPowerPathLock lock) {
+        this.lock = Objects.requireNonNull(lock, "lock");
     }
 }
