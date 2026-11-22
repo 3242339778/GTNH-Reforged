@@ -97,6 +97,29 @@ Its node factories are behaviorally distinct:
 
 A generic NeoForge energy capability is not a drop-in replacement for these consumer types. Each old consumer family needs an explicit behavior adapter and tests for direction, acceptance, returned amperage, and invalidation.
 
+## NeoForge 26.3 world-query candidate
+
+The 26.3 API surface was checked against the 26.3.0.114 Javadocs as a preliminary design reference. The project currently targets 26.3.0.113, so exact signatures and behavior still require compilation against that pinned MDK before implementation is marked verified.
+
+Candidate server-side lookup sequence:
+
+1. Obtain the target chunk through `ServerLevel.getChunkSource().getChunkNow(chunkX, chunkZ)`.
+2. If it returns null, report `UNLOADED` and do not call a chunk-loading method.
+3. If it returns a `LevelChunk`, query that already-loaded chunk for the `BlockEntity` at the target `BlockPos`.
+4. Return `LOADED_WITH_BLOCK_ENTITY` or `LOADED_WITHOUT_BLOCK_ENTITY` accordingly.
+
+This is preferable to using `LevelReader.hasChunk` as the long-term abstraction: that method is present in the 26.3 Javadocs but deprecated. `ServerChunkCache.hasChunk` is also present, but `getChunkNow` provides the loaded chunk handle needed for the subsequent lookup without a second world-level retrieval. Do not use `getChunk(x, z, status, loadOrGenerate)` with loading enabled for graph discovery. The adapter should remain server-thread-only and should not enqueue chunk tickets or otherwise alter chunk residency.
+
+Proposed pure-Java result contract (names are design names, not implemented API yet):
+
+- `UNLOADED`: no loaded chunk handle; never infer air or a missing endpoint from this alone.
+- `LOADED_WITHOUT_BLOCK_ENTITY`: target chunk is loaded and the target position has no block entity.
+- `LOADED_WITH_BLOCK_ENTITY`: target chunk is loaded and a block entity exists; preserve that object's identity.
+
+Callers then deliberately map the result according to their upstream contract: graph walking maps both non-object outcomes to null as the old `getTileEntityAtSide` path did; connection validation maps unloaded to the legacy -1/preserve-existing-connection result; IC2 sink discovery passes null to its acceptance callback for an unloaded cross-chunk target.
+
+Reference API pages: [Level](https://aldak0.ru/javadoc/26.3.x/net/minecraft/world/level/Level.html), [LevelReader](https://aldak0.ru/javadoc/26.3.x/net/minecraft/world/level/LevelReader.html), [ServerChunkCache](https://aldak0.ru/javadoc/26.3.x/net/minecraft/server/level/ServerChunkCache.html).
+
 ## Mapping to the current pure-Java contracts
 
 | Upstream responsibility | Current pure-Java boundary | Host implementation requirement |
