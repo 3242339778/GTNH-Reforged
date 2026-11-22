@@ -111,7 +111,8 @@ public final class LegacyPowerNodeBuilder {
             LegacyPowerPathLock lock = new LegacyPowerPathLock();
             consumerPath.setLock(lock);
             consumerNode.setPath(oppositeSide, consumerPath);
-            consumerNode.setLock(oppositeSide, lock);
+            // Upstream ConsumerNode does not populate its direction-lock slot;
+            // the shared Lock lives on the path and is returned to the parent.
             if (previousNode == null) {
                 throw new IllegalStateException("A consumer cannot be the graph root");
             }
