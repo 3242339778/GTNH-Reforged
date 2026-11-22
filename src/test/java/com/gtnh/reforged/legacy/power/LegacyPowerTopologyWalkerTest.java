@@ -21,9 +21,9 @@ class LegacyPowerTopologyWalkerTest {
         Pipe first = world.pipe();
         Pipe second = world.pipe();
         Tile machine = new Tile();
+        world.connect(first, LegacyPowerDirection.EAST, new Tile(), LegacyPowerDirection.WEST);
         world.connect(first, LegacyPowerDirection.WEST, second, LegacyPowerDirection.EAST);
         world.connect(second, LegacyPowerDirection.WEST, machine, LegacyPowerDirection.EAST);
-        world.connect(first, LegacyPowerDirection.EAST, new Tile(), LegacyPowerDirection.WEST);
 
         LegacyPowerTopologyWalker.WalkResult result =
             walker.walk(first, LegacyPowerDirection.WEST);
@@ -36,8 +36,8 @@ class LegacyPowerTopologyWalkerTest {
     @Test
     void keepsDegreeTwoEnergySourceAsEndpointNode() {
         Pipe source = world.pipe();
-        world.connect(source, LegacyPowerDirection.WEST, new Tile(), LegacyPowerDirection.EAST);
         world.connect(source, LegacyPowerDirection.EAST, new Tile(), LegacyPowerDirection.WEST);
+        world.connect(source, LegacyPowerDirection.WEST, new Tile(), LegacyPowerDirection.EAST);
         source.energySource = true;
 
         LegacyPowerTopologyWalker.WalkResult result =
@@ -65,9 +65,9 @@ class LegacyPowerTopologyWalkerTest {
         Tile endpoint = new Tile();
         Object foreignOwner = new Object();
         foreign.owner = foreignOwner;
-        world.connect(foreign, LegacyPowerDirection.WEST, new Tile(), LegacyPowerDirection.EAST);
-        world.connect(foreign, LegacyPowerDirection.EAST, next, LegacyPowerDirection.WEST);
-        world.connect(next, LegacyPowerDirection.EAST, endpoint, LegacyPowerDirection.WEST);
+        world.connect(foreign, LegacyPowerDirection.EAST, new Tile(), LegacyPowerDirection.WEST);
+        world.connect(foreign, LegacyPowerDirection.WEST, next, LegacyPowerDirection.EAST);
+        world.connect(next, LegacyPowerDirection.WEST, endpoint, LegacyPowerDirection.EAST);
 
         LegacyPowerTopologyWalker.WalkResult result =
             walker.walk(foreign, LegacyPowerDirection.WEST);
@@ -81,8 +81,8 @@ class LegacyPowerTopologyWalkerTest {
     @Test
     void returnsCurrentPipeWhenNextConnectedTileIsMissing() {
         Pipe pipe = world.pipe();
-        world.connect(pipe, LegacyPowerDirection.WEST, new Tile(), LegacyPowerDirection.EAST);
-        world.connect(pipe, LegacyPowerDirection.EAST, null, LegacyPowerDirection.WEST);
+        world.connect(pipe, LegacyPowerDirection.EAST, new Tile(), LegacyPowerDirection.WEST);
+        world.connect(pipe, LegacyPowerDirection.WEST, null, LegacyPowerDirection.EAST);
 
         LegacyPowerTopologyWalker.WalkResult result =
             walker.walk(pipe, LegacyPowerDirection.WEST);
@@ -94,7 +94,7 @@ class LegacyPowerTopologyWalkerTest {
     @Test
     void disconnectedIncomingSideTerminatesWithoutEndpoint() {
         Pipe pipe = world.pipe();
-        world.connect(pipe, LegacyPowerDirection.EAST, new Tile(), LegacyPowerDirection.WEST);
+        world.connect(pipe, LegacyPowerDirection.WEST, new Tile(), LegacyPowerDirection.EAST);
 
         assertNull(walker.walk(pipe, LegacyPowerDirection.WEST));
     }
