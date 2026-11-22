@@ -26,6 +26,7 @@ public final class LegacyPowerGraphNode implements LegacyPowerPathOwner {
     private boolean invalid;
     private LegacyPowerPath returnPath;
     private LegacyPowerPathLock returnLock;
+    private boolean hadVoltage;
 
     public LegacyPowerGraphNode(int nodeValue, Object tileIdentity,
         LegacyPowerNodeBinding pipeBinding) {
@@ -106,6 +107,14 @@ public final class LegacyPowerGraphNode implements LegacyPowerPathOwner {
 
     public void setLock(LegacyPowerDirection side, LegacyPowerPathLock lock) {
         locks[side.ordinalIndex()] = lock;
+    }
+
+    public boolean hasHadVoltage() {
+        return hadVoltage;
+    }
+
+    public void setHadVoltage(boolean hadVoltage) {
+        this.hadVoltage = hadVoltage;
     }
 
     public LegacyPowerPath getReturnPath() {
