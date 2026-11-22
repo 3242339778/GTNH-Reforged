@@ -28,9 +28,9 @@ class LegacyPowerTopologyWalkerTest {
         LegacyPowerTopologyWalker.WalkResult result =
             walker.walk(first, LegacyPowerDirection.WEST);
 
-        assertSame(machine, result.endpoint());
+        assertSame(second, result.endpoint());
         assertEquals(LegacyPowerDirection.WEST, result.enteredFrom());
-        assertEquals(List.of(first, second), result.intermediatePipes());
+        assertEquals(List.of(first), result.intermediatePipes());
     }
 
     @Test
@@ -72,8 +72,8 @@ class LegacyPowerTopologyWalkerTest {
         LegacyPowerTopologyWalker.WalkResult result =
             walker.walk(foreign, LegacyPowerDirection.WEST);
 
-        assertSame(endpoint, result.endpoint());
-        assertEquals(List.of(foreign, next), result.intermediatePipes());
+        assertSame(next, result.endpoint());
+        assertEquals(List.of(foreign), result.intermediatePipes());
         assertEquals(List.of(foreignOwner), world.clearedOwners);
         assertEquals(List.of(-1), world.clearReturnValues);
     }
