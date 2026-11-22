@@ -52,7 +52,7 @@ The coordinator's end-to-end partial-injection retry still requires a dedicated 
 ## Status
 
 - Upstream audit: completed against 5.09.54.275.
-- Coordinator implementation: committed; local Gradle verification pending.
-- UNKNOWN direction sentinel and regression tests: committed; local Gradle verification pending.
+- Coordinator implementation: committed; local Gradle verification passed.
+- UNKNOWN direction sentinel and regression tests: committed; local Gradle verification passed.
+- End-to-end stale retry test: committed; awaiting local Gradle verification.
 - Host integration: not implemented.
-- End-to-end stale retry test: pending.
