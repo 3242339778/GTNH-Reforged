@@ -78,6 +78,11 @@ class LegacyPowerNodeBuilderTest {
         assertNotNull(child);
         assertSame(child, deadEnd.binding.getNode());
         assertSame(root, child.getNeighbor(LegacyPowerDirection.DOWN));
+        LegacyPowerPath edgePath = root.getPath(LegacyPowerDirection.UP);
+        assertSame(edgePath, child.getPath(LegacyPowerDirection.DOWN));
+        assertSame(edgePath.getLock(), child.getLock(LegacyPowerDirection.DOWN));
+        assertSame(edgePath.getLock(), root.getLock(LegacyPowerDirection.UP));
+        assertSame(child, edgePath.getNodeMapOwner());
         assertSame(child, child.getSelfPath().getNodeMapOwner());
         assertEquals(3, builder.getNodeMap().size());
     }
