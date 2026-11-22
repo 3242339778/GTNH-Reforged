@@ -25,7 +25,7 @@ class LegacyPowerNodeBuilderTest {
 
         assertNotNull(root);
         assertEquals(1, root.getNodeValue());
-        assertEquals(3, root.getHighestNodeValue());
+        assertEquals(2, root.getHighestNodeValue());
         assertEquals(2, builder.getNodeMap().size());
         assertEquals(1, builder.getConsumers().size());
 
@@ -58,7 +58,7 @@ class LegacyPowerNodeBuilderTest {
         assertEquals(2, builder.getConsumers().size());
         // The map contains the root pipe node plus both consumer nodes.
         assertEquals(3, builder.getNodeMap().size());
-        assertEquals(2, root.getHighestNodeValue());
+        assertEquals(3, root.getHighestNodeValue());
         assertEquals(2, builder.getConsumers().get(0).getNodeValue());
         assertEquals(3, builder.getConsumers().get(1).getNodeValue());
     }
