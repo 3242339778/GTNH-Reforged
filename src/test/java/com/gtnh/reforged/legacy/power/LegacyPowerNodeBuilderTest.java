@@ -171,6 +171,8 @@ class LegacyPowerNodeBuilderTest {
                 case SOUTH -> 8;
                 case WEST -> 16;
                 case EAST -> 32;
+                case UNKNOWN -> throw new IllegalArgumentException(
+                    "UNKNOWN is not a physical pipe side");
             };
         }
 
