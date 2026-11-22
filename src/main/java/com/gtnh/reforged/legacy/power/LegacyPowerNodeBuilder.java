@@ -136,9 +136,9 @@ public final class LegacyPowerNodeBuilder {
             }
 
             occupiedSides |= access.getSideFlag(side);
-            LegacyPowerTopologyWalker.WalkResult walk = createWalker().walk(nextTile, side);
+            LegacyPowerTopologyWalker.WalkResult walk = createWalker().walkDetailed(nextTile, side);
             LegacyPowerGraphNode nextNode = null;
-            if (walk != null) {
+            if (walk != null && walk.endpoint() != null) {
                 nextNode = generateNode(walk.endpoint(), pipeNode, nextNodeValue + 1,
                     walk.intermediatePipes(), walk.enteredFrom());
                 if (nextNode != null) {
