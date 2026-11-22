@@ -52,6 +52,7 @@ The builder is intentionally not coupled to Minecraft or NeoForge classes.
 - shared path/endpoint Lock identity;
 - sibling branch node-value progression and highest-node-value tracking;
 - dead-end pipe creation through the empty-node factory hook;
+- loop-closing cable runs retained as unrouted paths and cleaned with identity-safe pipe detachment;
 - occupied-side flag and reload callback behavior.
 
 ## Not implemented / not claimed
