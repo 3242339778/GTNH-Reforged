@@ -110,7 +110,7 @@ Candidate server-side lookup sequence:
 
 This is preferable to using `LevelReader.hasChunk` as the long-term abstraction: that method is present in the 26.3 Javadocs but deprecated. `ServerChunkCache.hasChunk` is also present, but `getChunkNow` provides the loaded chunk handle needed for the subsequent lookup without a second world-level retrieval. Do not use `getChunk(x, z, status, loadOrGenerate)` with loading enabled for graph discovery. The adapter should remain server-thread-only and should not enqueue chunk tickets or otherwise alter chunk residency.
 
-Proposed pure-Java result contract (names are design names, not implemented API yet):
+Pure-Java result contract now implemented as `LegacyPowerNeighborLookup` (focused tests added; local execution still pending):
 
 - `UNLOADED`: no loaded chunk handle; never infer air or a missing endpoint from this alone.
 - `LOADED_WITHOUT_BLOCK_ENTITY`: target chunk is loaded and the target position has no block entity.
@@ -128,7 +128,7 @@ Reference API pages: [Level](https://aldak0.ru/javadoc/26.3.x/net/minecraft/worl
 | Cable `nodePath` binding | `LegacyPowerPipeBinding` / `LegacyPowerCableState` | Store/retrieve the exact path object and update connection snapshot |
 | `getNodeMap()` fallback | `LegacyPowerTopologyAccess.getNodeMapOwner` / `LegacyPowerTransferAccess.getNodeMapOwner` | Prefer node; otherwise resolve the bound path's graph owner |
 | Six-way connection state | `LegacyPowerTopologyAccess.isConnected` | Use the real cable connection state and correct direction mapping |
-| Neighbor lookup | `LegacyPowerTopologyAccess.getNeighbor` | Preserve the legacy null mapping for graph walking; the concrete world boundary must also expose loaded-empty vs unloaded for connection-check and consumer-specific callers |
+| Neighbor lookup | `LegacyPowerNeighborLookup` plus `LegacyPowerTopologyAccess.getNeighbor` | Keep loaded-empty and unloaded distinct at the host boundary; map them to legacy null only in the graph-walk caller |
 | Pipe classification | `LegacyPowerTopologyAccess.isPipe` | Only GT power cables are traversable, not every pipe/fluid pipe |
 | Power-specific node factories | `LegacyPowerNodeBuildAccess` | Construct the right pipe/dead-end/consumer node types |
 | Path creation | `LegacyPowerNodeBuildAccess.createPath` | Bind every cable in order; preserve identity and owner |
@@ -163,6 +163,7 @@ Reference API pages: [Level](https://aldak0.ru/javadoc/26.3.x/net/minecraft/worl
 - Upstream host-state audit: completed against GT5-Unofficial 5.09.54.275.
 - Pure-Java graph core: locally verified by the development machine's complete `legacy.power.*Test` Gradle test task.
 - `LegacyPowerCableState`: implemented; the focused `LegacyPowerCableStateTest` and complete `legacy.power.*Test` tasks both reported `BUILD SUCCESSFUL` on the development machine.
+- `LegacyPowerNeighborLookup`: implemented with five focused unit tests; local Gradle verification pending.
 - Concrete NeoForge cable/block-entity host: not implemented.
 - Concrete GT consumer-family adapters: not implemented.
 - In-game/GameTest verification: not implemented.
