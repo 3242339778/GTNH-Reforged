@@ -53,7 +53,7 @@ class LegacyPowerTransferCoordinatorTest {
         LegacyPowerGraphNode oldOwner = new LegacyPowerGraphNode(1, access.source, null);
         oldOwner.invalidateNodeMap(5);
         access.owner = oldOwner;
-        access.node = new LegacyPowerGraphNode(1, access.source, null);
+        access.node = oldOwner;
         access.tick = 15;
         LegacyPowerTransferCoordinator coordinator = new LegacyPowerTransferCoordinator(access);
 
