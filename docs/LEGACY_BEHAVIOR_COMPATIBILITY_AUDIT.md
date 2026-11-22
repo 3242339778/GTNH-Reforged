@@ -51,9 +51,34 @@ Sources:
 
 For historical GTNH recipe removals, investigate: target-mod config/datagen control; exact recipe-ID override; reload/manager filtering hook; then narrow Mixin/class processor if required. Add tests proving unwanted recipes are absent and intended replacements present. Do not call recipe priorities a recipe-nuking API.
 
+## 3. GT5-Unofficial dependency truth: hard requirements versus Gradle scopes
+
+The GTMod @Mod annotation currently declares these required-after dependencies:
+
+- IC2
+- structurelib
+- gtnhlib version 0.12.4 or newer
+- endlessids version 1.7.3 or newer
+- postea version 1.2.7 or newer
+- modularui version 1.1.12 or newer
+- appliedenergistics2
+
+This is the strongest direct evidence in the inspected source for GT5U's declared hard runtime dependency set. The dependency script's Gradle api configuration is broader and must not be mistaken for the hard-dependency list. For example, NotEnoughItems is in Gradle api but is not listed as required-after in GTMod's @Mod annotation. Conversely, optional integrations are expressed with after-dependencies, ModList checks, and conditional Late Mixins.
+
+The current dependencies.gradle also distinguishes implementation, compileOnly/compileOnlyApi, devOnlyNonPublishable, runtimeOnlyNonPublishable, and test configurations. In particular:
+- Baubles-Expanded and TinkersConstruct are implementation dependencies.
+- Numerous optional mods are compileOnly or compileOnlyApi.
+- DuraDisplay, EnderIO, and HoloInventory appear as runtimeOnlyNonPublishable development-run dependencies.
+- Horizon-QA is devOnlyNonPublishable.
+- Several commented runtimeOnlyNonPublishable entries are test recipes, not active dependencies.
+
+Sources:
+- https://github.com/GTNewHorizons/GT5-Unofficial/blob/master/src/main/java/gregtech/GTMod.java
+- https://github.com/GTNewHorizons/GT5-Unofficial/blob/master/dependencies.gradle
+
 ## 3. GT5-Unofficial Mixin inventory
 
-Current upstream tree observation: 53 Java files under src/mixin/java, 32 Early and 21 Late. The registry contains functional groups; one group can contain multiple classes. These are source-tree counts, not a completed semantic audit of all 53 classes.
+Current upstream tree observation: 53 Java files under src/mixin/java, 32 Early and 21 Late. The Mixin enum has 30 actual functional constants (a simple constructor-name text match also catches the enum constructor named Mixin, which must not be counted). One functional group can contain multiple classes. These are source-tree counts, not a completed semantic audit of all 53 classes.
 
 | Area / group | Behavior to preserve | Candidate 26.3 route |
 |---|---|---|
