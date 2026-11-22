@@ -45,6 +45,17 @@ public final class LegacyPowerGraphNode implements LegacyPowerPathOwner {
         return graphState;
     }
 
+    /** Mirrors Node.joinNodeMap: a one-way assignment to the previous node's current root. */
+    public void joinNodeMap(LegacyPowerGraphNode previousNode) {
+        if (previousNode != null) {
+            graphState.joinNodeMap(previousNode.graphState);
+        }
+    }
+
+    public void invalidateNodeMap(long currentServerTick) {
+        graphState.invalidateNodeMap(currentServerTick);
+    }
+
     public int getNodeValue() {
         return nodeValue;
     }
