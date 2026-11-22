@@ -97,6 +97,19 @@ class LegacyPowerGraphCleanerTest {
     }
 
     @Test
+    void joinedNodesShareInvalidationThroughTheGraphRoot() {
+        LegacyPowerGraphNode first = node(1, null);
+        LegacyPowerGraphNode second = node(2, null);
+        second.joinNodeMap(first);
+
+        second.invalidateNodeMap(100);
+
+        assertFalse(first.getGraphState().isNodeMapValid());
+        assertEquals(1, first.getGraphState().getTopologyVersion());
+        assertEquals(100, first.getGraphState().getTopologyChangeTick());
+    }
+
+    @Test
     void pathInvalidationDelegatesToItsOwningGraphNode() {
         FakePipe pipe = new FakePipe();
         LegacyPowerGraphNode node = node(1, null);
