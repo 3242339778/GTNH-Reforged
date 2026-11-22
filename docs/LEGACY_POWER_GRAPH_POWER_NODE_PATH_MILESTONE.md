@@ -64,7 +64,7 @@ Those remain separate integration and behavior-test work.
 Run:
 
 ```powershell
-.\\gradlew.bat test --tests "com.gtnh.reforged.legacy.power.LegacyPowerNodePathTest" --rerun
+.\gradlew.bat test --tests "com.gtnh.reforged.legacy.power.LegacyPowerNodePathTest" --rerun
 .\\gradlew.bat test --tests "com.gtnh.reforged.legacy.power.*Test" --rerun
 ```
 
