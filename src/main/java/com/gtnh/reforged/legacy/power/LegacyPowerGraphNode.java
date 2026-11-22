@@ -94,6 +94,9 @@ public final class LegacyPowerGraphNode implements LegacyPowerPathOwner {
 
     public void setPath(LegacyPowerDirection side, LegacyPowerPath path) {
         paths[side.ordinalIndex()] = path;
+        if (path != null) {
+            path.setNodeMapOwner(this);
+        }
     }
 
     public LegacyPowerPathLock getLock(LegacyPowerDirection side) {
