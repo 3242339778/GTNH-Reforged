@@ -35,7 +35,7 @@ class LegacyPowerNodeBuilderTest {
         assertSame(consumer, root.getNeighbor(LegacyPowerDirection.EAST));
         assertSame(root, consumer.getNeighbor(LegacyPowerDirection.WEST));
         assertSame(rootPath, consumerPath);
-        assertSame(root.getLock(LegacyPowerDirection.EAST), consumer.getLock(LegacyPowerDirection.WEST));
+        assertNull(consumer.getLock(LegacyPowerDirection.WEST));
         assertSame(rootPath.getLock(), root.getLock(LegacyPowerDirection.EAST));
         assertSame(consumer, rootPath.getNodeMapOwner());
         assertEquals(1, access.pathReloads);
