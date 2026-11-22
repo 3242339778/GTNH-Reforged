@@ -1,5 +1,6 @@
 package com.gtnh.reforged.legacy.power;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -63,6 +64,58 @@ class LegacyPowerTransferCoordinatorTest {
         assertEquals(-1, access.lastClearReturnValue);
     }
 
+
+    @Test
+    void staleInjectionRebuildsGraphAndRetriesOnlyRemainingAmperage() {
+        FakeAccess access = new FakeAccess();
+        RetryConsumer consumer = new RetryConsumer(access);
+        access.consumers = List.of(consumer);
+        LegacyPowerTransferCoordinator coordinator = new LegacyPowerTransferCoordinator(access);
+
+        long used = coordinator.transfer(
+            access.source, LegacyPowerDirection.EAST, 128, 8);
+
+        assertEquals(5, used, "the two passes must return the sum of their accepted amperage");
+        assertEquals(2, consumer.injectionCount);
+        assertEquals(List.of(8L, 6L), consumer.maxAmpsSeen,
+            "the rebuilt graph must receive only the six amps not consumed by the first pass");
+        assertEquals(2, access.buildCalls);
+        assertEquals(1, access.clearCalls);
+        assertNotNull(access.firstBuiltNode);
+        assertNotNull(access.firstBuiltPath);
+        assertNotNull(access.lastBuiltPath);
+        assertTrue(access.firstBuiltNode.isInvalid());
+        assertFalse(access.firstBuiltPath.isValid());
+        assertTrue(access.lastBuiltPath.isValid());
+    }
+
+    private static final class RetryConsumer implements LegacyPowerConsumerAccess {
+        private final FakeAccess access;
+        private final LegacyPowerGraphNode node =
+            new LegacyPowerGraphNode(2, new Object(), null);
+        private final List<Long> maxAmpsSeen = new ArrayList<>();
+        private int injectionCount;
+
+        private RetryConsumer(FakeAccess access) {
+            this.access = access;
+        }
+
+        @Override public LegacyPowerGraphNode getNode() { return node; }
+        @Override public boolean needsEnergy() { return true; }
+
+        @Override
+        public long injectEnergy(long voltage, long maxAmps) {
+            injectionCount++;
+            maxAmpsSeen.add(maxAmps);
+            if (injectionCount == 1) {
+                // Simulate a topology mutation during the first consumer call.
+                access.node.invalidateNodeMap(access.tick);
+                return Math.min(2, maxAmps);
+            }
+            return Math.min(3, maxAmps);
+        }
+    }
+
     private static final class FakeConsumer implements LegacyPowerConsumerAccess {
         private final boolean needsEnergy;
         private final LegacyPowerGraphNode node =
@@ -102,6 +155,9 @@ class LegacyPowerTransferCoordinatorTest {
         private final AtomicInteger pathTick = new AtomicInteger();
         private LegacyPowerGraphNode node;
         private LegacyPowerGraphNode owner;
+        private LegacyPowerGraphNode firstBuiltNode;
+        private LegacyPowerNodePath firstBuiltPath;
+        private LegacyPowerNodePath lastBuiltPath;
         private List<? extends LegacyPowerConsumerAccess> consumers = List.of();
         private int markSourceCalls;
         private int buildCalls;
@@ -140,6 +196,11 @@ class LegacyPowerTransferCoordinatorTest {
                     List.of(new FakeCable()), pathTick::get);
                 node.setPath(LegacyPowerDirection.EAST, edge);
                 node.setLock(LegacyPowerDirection.EAST, edge.getLock());
+                lastBuiltPath = edge;
+            }
+            if (buildCalls == 1) {
+                firstBuiltNode = node;
+                firstBuiltPath = lastBuiltPath;
             }
         }
         @Override public boolean isPowerNode(LegacyPowerGraphNode candidate) { return candidate != null; }
