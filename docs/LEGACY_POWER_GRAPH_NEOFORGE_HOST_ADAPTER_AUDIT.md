@@ -83,8 +83,8 @@ A generic NeoForge energy capability is not a drop-in replacement for these cons
 
 | Upstream responsibility | Current pure-Java boundary | Host implementation requirement |
 |---|---|---|
-| Cable `node` binding | `LegacyPowerNodeBinding` | Store/retrieve the same node object by identity |
-| Cable `nodePath` binding | `LegacyPowerPipeBinding` | Store/retrieve the exact path object and update connection snapshot |
+| Cable `node` binding | `LegacyPowerNodeBinding` / `LegacyPowerCableState` | Store/retrieve the same node object by identity |
+| Cable `nodePath` binding | `LegacyPowerPipeBinding` / `LegacyPowerCableState` | Store/retrieve the exact path object and update connection snapshot |
 | `getNodeMap()` fallback | `LegacyPowerTopologyAccess.getNodeMapOwner` / `LegacyPowerTransferAccess.getNodeMapOwner` | Prefer node; otherwise resolve the bound path's graph owner |
 | Six-way connection state | `LegacyPowerTopologyAccess.isConnected` | Use the real cable connection state and correct direction mapping |
 | Neighbor lookup | `LegacyPowerTopologyAccess.getNeighbor` | Return null for absent or unloaded neighbors without force-loading |
@@ -92,21 +92,24 @@ A generic NeoForge energy capability is not a drop-in replacement for these cons
 | Power-specific node factories | `LegacyPowerNodeBuildAccess` | Construct the right pipe/dead-end/consumer node types |
 | Path creation | `LegacyPowerNodeBuildAccess.createPath` | Bind every cable in order; preserve identity and owner |
 | Lock refresh | `reloadPipeLocks` / `reloadPathLocks` | Recompute real cable-side lock state after graph installation |
+| Cable connection snapshot / occupied sides | `LegacyPowerCableState` | Preserve bind-time connection bits and detect endpoint occupancy changes independently |
+| Cable invalidation lifecycle | `LegacyPowerCableState` | Distinguish shared-root invalidation, immediate graph clearing, and affected-path invalidation |
 | Consumer injection | `LegacyPowerConsumerAccess` | Preserve each consumer family's original acceptance and injection behavior |
 | Server tick and side | `LegacyPowerTransferAccess` | Use logical server state and the same server tick source as graph invalidation |
 
 ## Important integration constraints
 
-1. The current repository does not yet contain a ported `BaseMetaPipeEntity`, `MetaPipeEntity`, or concrete GT cable block entity. Therefore a concrete adapter cannot be honestly implemented against real host objects yet.
-2. The future ported cable block entity should own `LegacyPowerGraphNode` and `LegacyPowerPath` references directly. Do not attempt to put the old 1.7.10 `Node` class and the new pure-Java node into the same typed field or mix the two Minecraft class universes.
-3. Preserve stable object identity for cable handles, node objects, path objects, map roots, and consumer adapters for the lifetime of a graph.
-4. World access must be server-thread-only for graph mutation. Any asynchronous chunk/world API must be marshalled to the logical server thread before touching this graph.
-5. The graph core is not a replacement for NeoForge's energy capability. NeoForge capability exposure/transfer belongs at the consumer/source boundary; GTNH's graph remains responsible for its legacy routing, voltage loss, amperage limits, locks, overload, and partial-retry semantics.
-6. Save/load behavior needs a separate decision. The original graph is runtime topology state and should be rebuilt from loaded world state rather than blindly serializing stale object references.
+1. `LegacyPowerCableState` now models the graph-related `BaseMetaPipeEntity` fields and invalidation rules as a pure-Java state owner. It is not itself a Minecraft block entity.
+2. The current repository does not yet contain a ported `BaseMetaPipeEntity`, `MetaPipeEntity`, or concrete GT cable block entity. Therefore a concrete adapter cannot be honestly implemented against real host objects yet.
+3. The future ported cable block entity should own `LegacyPowerGraphNode` and `LegacyPowerPath` references directly. Do not attempt to put the old 1.7.10 `Node` class and the new pure-Java node into the same typed field or mix the two Minecraft class universes.
+4. Preserve stable object identity for cable handles, node objects, path objects, map roots, and consumer adapters for the lifetime of a graph.
+5. World access must be server-thread-only for graph mutation. Any asynchronous chunk/world API must be marshalled to the logical server thread before touching this graph.
+6. The graph core is not a replacement for NeoForge's energy capability. NeoForge capability exposure/transfer belongs at the consumer/source boundary; GTNH's graph remains responsible for its legacy routing, voltage loss, amperage limits, locks, overload, and partial-retry semantics.
+7. Save/load behavior needs a separate decision. The original graph is runtime topology state and should be rebuilt from loaded world state rather than blindly serializing stale object references.
 
 ## Recommended implementation order
 
-1. Port the cable/base-tile state owner first: node/path bindings, connection bits, occupied-side snapshot, server-side invalidation hooks.
+1. Integrate `LegacyPowerCableState` into the ported cable/base-tile state owner: node/path bindings, connection bits, occupied-side snapshot, and invalidation hooks.
 2. Implement a read-only world adapter for loaded-neighbor lookup, connection checks, pipe classification, and energy-source detection.
 3. Implement path binding and lock reload against the new cable objects.
 4. Implement power-specific node factories and consumer discovery one family at a time.
@@ -118,6 +121,7 @@ A generic NeoForge energy capability is not a drop-in replacement for these cons
 
 - Upstream host-state audit: completed against GT5-Unofficial 5.09.54.275.
 - Pure-Java graph core: locally verified by the development machine's complete `legacy.power.*Test` Gradle test task.
+- `LegacyPowerCableState`: implemented; local Gradle verification pending.
 - Concrete NeoForge cable/block-entity host: not implemented.
 - Concrete GT consumer-family adapters: not implemented.
 - In-game/GameTest verification: not implemented.
