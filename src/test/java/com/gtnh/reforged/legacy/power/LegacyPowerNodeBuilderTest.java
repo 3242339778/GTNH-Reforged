@@ -64,7 +64,9 @@ class LegacyPowerNodeBuilderTest {
     void createsDeadEndPipeNodesThroughTheEmptyNodeHook() {
         FakeTile rootTile = FakeTile.pipe();
         FakeTile deadEnd = FakeTile.pipe();
+        FakeTile secondBranch = FakeTile.consumer();
         connect(rootTile, LegacyPowerDirection.UP, deadEnd);
+        connect(rootTile, LegacyPowerDirection.EAST, secondBranch);
 
         FakeAccess access = new FakeAccess();
         LegacyPowerNodeBuilder builder = new LegacyPowerNodeBuilder(access);
@@ -75,7 +77,7 @@ class LegacyPowerNodeBuilderTest {
         assertSame(child, deadEnd.binding.getNode());
         assertSame(root, child.getNeighbor(LegacyPowerDirection.DOWN));
         assertSame(child, child.getSelfPath().getNodeMapOwner());
-        assertEquals(2, builder.getNodeMap().size());
+        assertEquals(3, builder.getNodeMap().size());
     }
 
     private static void connect(FakeTile first, LegacyPowerDirection side, FakeTile second) {
