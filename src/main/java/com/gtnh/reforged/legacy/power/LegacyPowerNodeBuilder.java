@@ -76,7 +76,6 @@ public final class LegacyPowerNodeBuilder {
             LegacyPowerPath selfPath = requirePath(List.of(tile));
             pipeNode.setSelfPath(selfPath);
             if (invalidSide != null) {
-                int incomingIndex = invalidSide.ordinalIndex();
                 pipeNode.setNeighbor(invalidSide, previousNode);
 
                 LegacyPowerPath incomingPath = requirePath(intermediatePipes);
@@ -94,9 +93,10 @@ public final class LegacyPowerNodeBuilder {
             return pipeNode;
         }
 
+        int consumerCountBefore = consumers.size();
         if (access.addConsumer(tile, oppositeSide, nextNodeValue, consumers)) {
-            if (consumers.isEmpty()) {
-                throw new IllegalStateException("addConsumer returned true without appending a consumer");
+            if (consumers.size() != consumerCountBefore + 1) {
+                throw new IllegalStateException("addConsumer must append exactly one consumer node");
             }
             LegacyPowerGraphNode consumerNode = consumers.get(consumers.size() - 1);
             if (consumerNode == null) {
