@@ -109,6 +109,7 @@ class LegacyPowerNodesTest {
         assertEquals(4, used);
         assertTrue(consumers.isStale());
         assertEquals(1, consumer.injectionCount);
+        tick.set(2); // getAmperage() reports exactly the previous tick
         assertEquals(4, edge.getAmperage());
     }
 
