@@ -8,10 +8,10 @@ import java.util.Objects;
  * and cleanup behavior.
  *
  * <p>This class models path-to-pipe bindings, optional graph ownership,
- * validity, and the path lock. It does not model PowerNodePath voltage,
- * amperage, cable loss, server ticks, or energy distribution.</p>
+ * validity, and the path lock. PowerNodePath-specific electrical behavior is
+ * implemented by LegacyPowerNodePath.</p>
  */
-public final class LegacyPowerPath {
+public class LegacyPowerPath {
 
     private final List<LegacyPowerPipeBinding> pipes;
     private LegacyPowerPathLock lock = new LegacyPowerPathLock();
