@@ -30,28 +30,38 @@ class LegacyPowerGraphCleanerTest {
     }
 
     @Test
-    void clearsBranchAndCycleUsingReturnNodeValueRule() {
+    void clearsBranchAndLoopClosingPathUsingOriginalTreeTopology() {
         LegacyPowerGraphNode root = node(1, null);
         LegacyPowerGraphNode left = node(2, null);
         LegacyPowerGraphNode right = node(3, null);
-        LegacyPowerGraphNode join = node(4, null);
+        LegacyPowerGraphNode branchEnd = node(4, null);
+        FakePipe loopPipe = new FakePipe();
+        LegacyPowerPath loopClosingPath = new LegacyPowerPath(List.of(loopPipe));
 
         root.setNeighbor(LegacyPowerDirection.NORTH, left);
         root.setNeighbor(LegacyPowerDirection.SOUTH, right);
-        left.setNeighbor(LegacyPowerDirection.WEST, join);
-        right.setNeighbor(LegacyPowerDirection.EAST, join);
-        join.setNeighbor(LegacyPowerDirection.DOWN, root);
+        left.setNeighbor(LegacyPowerDirection.WEST, branchEnd);
+        left.setNeighbor(LegacyPowerDirection.EAST, root);
+        right.setNeighbor(LegacyPowerDirection.NORTH, root);
+        branchEnd.setNeighbor(LegacyPowerDirection.EAST, left);
+
+        // The upstream builder does not add a second neighbor edge for a loop.
+        // It records the un-routed cable run on the owning node instead.
+        root.addUnroutedPath(loopClosingPath);
 
         LegacyPowerGraphCleaner.clearNodeMap(root, -1);
 
-        for (LegacyPowerGraphNode node : List.of(root, left, right, join)) {
+        for (LegacyPowerGraphNode node : List.of(root, left, right, branchEnd)) {
             assertTrue(node.isInvalid());
         }
+        assertFalse(loopClosingPath.isValid());
+        assertNull(loopPipe.path);
         assertNull(root.getNeighbor(LegacyPowerDirection.NORTH));
         assertNull(root.getNeighbor(LegacyPowerDirection.SOUTH));
         assertNull(left.getNeighbor(LegacyPowerDirection.WEST));
-        assertNull(right.getNeighbor(LegacyPowerDirection.EAST));
-        assertNull(join.getNeighbor(LegacyPowerDirection.DOWN));
+        assertNull(left.getNeighbor(LegacyPowerDirection.EAST));
+        assertNull(right.getNeighbor(LegacyPowerDirection.NORTH));
+        assertNull(branchEnd.getNeighbor(LegacyPowerDirection.EAST));
     }
 
     @Test
