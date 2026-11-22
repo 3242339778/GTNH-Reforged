@@ -28,13 +28,13 @@ The implementation follows the upstream operation order:
 6. For a neighbor, recurse only when its node value differs from the supplied return value.
 7. Clear the neighbor slot after the conditional recursive call.
 
-The recursion rule is intentionally not replaced with a generic visited set. Identity checks remain in pipe-node and path detachment.
+The recursion rule is intentionally not replaced with a generic visited set. The neighbor links produced by the upstream builder form a routing tree; loop-closing runs are stored in `mUnroutedPaths`, not added as a second neighbor route. Identity checks remain in pipe-node and path detachment.
 
 ## Tests added
 
 `LegacyPowerGraphCleanerTest` covers:
 - line cleanup and node-binding detachment;
-- branch/cycle cleanup under the return-node-value rule;
+- branch cleanup plus loop-closing unrouted-path cleanup using the upstream spanning-tree topology;
 - identity-safe cleanup when a pipe has already been rebound to a replacement node;
 - self, unrouted, and directional edge path cleanup;
 - path invalidation delegating to the owning graph node;
