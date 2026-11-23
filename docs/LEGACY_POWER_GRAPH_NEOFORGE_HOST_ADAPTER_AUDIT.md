@@ -47,7 +47,7 @@ The pure-Java graph state already models shared root identity, topology version,
 
 The adapter also supplies `BlockEntity.isRemoved()` and exact `getBlockPos()` matching to the legacy cache. It preserves the legacy coordinate-mismatch behavior (return null-equivalent without evicting the cached object). This is a compile-verified host adapter prototype, not yet validated in a running dedicated server or GameTest. Callers must invoke it on the logical server thread.
 
-`LegacyPowerCableHostState` now bundles one stable `LegacyPowerCableState` and one stable `LegacyPowerNeighborCache` for a future cable BlockEntity to own. It exposes delegated lifecycle hooks: `onValidate()`, `onInvalidate()`, `onChunkUnload()`, and `onAdjacentBlockChange()` clear only negative-cache markers; `onPositionChanged()` clears every cache entry. Immediate graph cleanup and delayed topology invalidation are explicit separate methods, so a cache lifecycle callback cannot accidentally clear a graph. `createNeighborAccess(level, position)` builds the Minecraft-facing adapter over the bundle's own cache. The bundle is a component, not itself a registered BlockEntity.
+`LegacyPowerCableHostState` bundles one stable `LegacyPowerCableState` and one stable `LegacyPowerNeighborCache` for a cable BlockEntity to own. `onValidate()`, `onInvalidate()`, and `onAdjacentBlockChange()` clear only negative-cache markers; `onPositionChanged()` clears every cache entry. `onChunkUnload()` is intentionally different: it first performs immediate graph cleanup, matching the upstream `CommonBaseMetaTileEntity.onChunkUnload() -> BaseMetaPipeEntity.onUnload() -> invalidateNodeMap()` chain, then clears negative-cache markers as `BaseTileEntity.onChunkUnload()` does. The explicit `clearGraphImmediately()` operation remains available for a confirmed permanent host/block replacement, while delayed topology invalidation remains separate. The bundle is a component, not itself a registered BlockEntity.
 
 ### World and neighbor access
 
@@ -288,7 +288,7 @@ This is a registration/lifecycle shell only. It does not yet implement:
 - graph construction, consumer discovery, energy injection or transfer;
 - cable geometry, collision adaptation, covers, rendering, or a creative-tab presentation.
 
-The host does not clear the graph merely because `setRemoved()` runs: the precise permanent-removal versus unload semantics must be integrated with the real block-removal path and verified in-game. Chunk unload is forwarded separately. This avoids accidentally destroying graph state during ordinary chunk lifecycle transitions.
+Lifecycle semantics are now mapped from the full GT5U inheritance chain rather than from `BaseTileEntity` alone. In 5.09.54.275, `CommonBaseMetaTileEntity.onChunkUnload()` calls `onUnload()` unless the callback is the special `tryDisableTicking()` case; `BaseMetaPipeEntity.onUnload()` calls `invalidateNodeMap()` before delegating to `BaseTileEntity.onChunkUnload()`. Therefore a real chunk unload does clear the graph. Separately, `BaseMetaPipeEntity.invalidate()` invokes meta-tile removal and `invalidateNodeMap()` before `BaseTileEntity.invalidate()` clears negative cache markers. The NeoForge host now mirrors those two paths: `onChunkUnloaded()` clears the graph once, while `setRemoved()` clears it only for a confirmed block/host replacement and skips duplicate cleanup after chunk unload. An `UNKNOWN` removal classification remains non-destructive.
 
 ### Verification status
 
@@ -312,7 +312,7 @@ Each diagnostic includes logical side, BlockPos, and the identity hash of the ow
 - removal callback;
 - a newly-created BlockEntity after the chunk/world is loaded again (new host-state identity is expected because graph object references are runtime-only).
 
-These log messages are temporary prototype instrumentation and should be reduced or removed after the callback sequence has been observed. They do not claim that the full GT cable removal/invalidation policy is implemented. In particular, `setRemoved()` currently clears only negative neighbor-cache markers; graph invalidation/removal semantics remain a separate integration task.
+These log messages are temporary prototype instrumentation and should be reduced or removed after the callback sequence has been observed. They do not claim that the full GT cable implementation exists. The callback sequence has now been observed on the 26.3.0.113 runtime: server-side `ChunkEvent.Unload`, `onChunkUnloaded()`, then `setRemoved()` classified as `CHUNK_UNLOAD`, followed by a new `onLoad()` instance when the chunk is loaded again. The host's graph-cleanup forwarding now follows the audited GT5U `onUnload()` and `invalidate()` paths; actual graph references are not yet populated by the prototype cable.
 
 ### Manual lifecycle check still required
 
