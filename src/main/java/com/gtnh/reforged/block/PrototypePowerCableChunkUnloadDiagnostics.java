@@ -19,7 +19,7 @@ import net.neoforged.neoforge.event.level.ChunkEvent;
  */
 public final class PrototypePowerCableChunkUnloadDiagnostics {
 
-    private PrototypePowerCableChunkUnloadDiagnostics() {
+    public PrototypePowerCableChunkUnloadDiagnostics() {
     }
 
     @SubscribeEvent
