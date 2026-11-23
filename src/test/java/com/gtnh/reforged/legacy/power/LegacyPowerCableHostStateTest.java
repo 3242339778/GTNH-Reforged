@@ -63,6 +63,56 @@ class LegacyPowerCableHostStateTest {
     }
 
     @Test
+    void neighborChangeClearsNegativeMarkersAndInvalidatesGraphWhenEndpointOccupancyChanges() {
+        LegacyPowerCableHostState host = new LegacyPowerCableHostState();
+        LegacyPowerGraphNode root = new LegacyPowerGraphNode(1, new Object(), host.cableState());
+        host.cableState().setNode(root);
+        host.cableState().setOccupiedConnectedSides(0b000001);
+        host.neighborCache().remember(
+            LegacyPowerDirection.NORTH,
+            LegacyPowerNeighborLookup.loadedWithoutBlockEntity());
+        host.neighborCache().remember(
+            LegacyPowerDirection.SOUTH,
+            LegacyPowerNeighborLookup.loadedWithBlockEntity(new Object()));
+
+        boolean changed = host.onAdjacentBlockChange(0b000101, 72L);
+
+        assertTrue(changed);
+        assertEquals(0b000101, host.cableState().getOccupiedConnectedSides());
+        assertFalse(root.getGraphState().isNodeMapValid());
+        assertEquals(72L, root.getGraphState().getTopologyChangeTick());
+        assertEquals(1L, root.getGraphState().getTopologyVersion());
+        assertEquals(LegacyPowerNeighborCache.CacheStatus.MISS,
+            host.neighborCache().cachedResult(LegacyPowerDirection.NORTH, false, tile -> false).status());
+        assertEquals(LegacyPowerNeighborCache.CacheStatus.TILE,
+            host.neighborCache().cachedResult(LegacyPowerDirection.SOUTH, false, tile -> false).status());
+    }
+
+    @Test
+    void neighborChangeWithoutDirectNodeOnlyClearsNegativeMarkers() {
+        LegacyPowerCableHostState host = new LegacyPowerCableHostState();
+        host.neighborCache().remember(
+            LegacyPowerDirection.NORTH,
+            LegacyPowerNeighborLookup.loadedWithoutBlockEntity());
+
+        assertFalse(host.onAdjacentBlockChange(0b000001, 90L));
+        assertEquals(LegacyPowerNeighborCache.CacheStatus.MISS,
+            host.neighborCache().cachedResult(LegacyPowerDirection.NORTH, false, tile -> false).status());
+    }
+
+    @Test
+    void unchangedEndpointOccupancyDoesNotInvalidateGraphAgain() {
+        LegacyPowerCableHostState host = new LegacyPowerCableHostState();
+        LegacyPowerGraphNode root = new LegacyPowerGraphNode(1, new Object(), host.cableState());
+        host.cableState().setNode(root);
+        host.cableState().setOccupiedConnectedSides(0b000001);
+
+        assertFalse(host.onAdjacentBlockChange(0b000001, 100L));
+        assertTrue(root.getGraphState().isNodeMapValid());
+        assertEquals(0L, root.getGraphState().getTopologyVersion());
+    }
+
+    @Test
     void chunkUnloadImmediatelyClearsGraphAndNegativeCacheMarkers() {
         LegacyPowerCableHostState host = new LegacyPowerCableHostState();
         LegacyPowerGraphNode root = new LegacyPowerGraphNode(1, new Object(), host.cableState());
