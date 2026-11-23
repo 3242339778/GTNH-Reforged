@@ -2,6 +2,7 @@ package com.gtnh.reforged.block;
 
 import com.gtnh.reforged.GTNHReforged;
 import com.gtnh.reforged.legacy.power.LegacyPowerCableHostState;
+import com.gtnh.reforged.legacy.power.LegacyPowerRemovalDecision;
 import com.gtnh.reforged.legacy.power.bridge.neoforge.NeoForgeLegacyPowerNeighborAccess;
 import com.gtnh.reforged.registry.ModBlocks;
 
@@ -9,6 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 
 /**
  * First real NeoForge host for the extracted legacy cable graph state.
@@ -61,7 +63,44 @@ public final class PrototypePowerCableBlockEntity extends BlockEntity {
         LegacyPowerCableHostState.SetRemovedContext context = hostState.onSetRemoved();
         hostState.onInvalidate();
         super.setRemoved();
-        logLifecycle("setRemoved", context.name());
+
+        LegacyPowerRemovalDecision.Result decision = classifyRemoval(context);
+        logLifecycle("setRemoved", decision.name());
+    }
+
+    /**
+     * Inspects only an already-loaded server chunk. It never requests or
+     * generates a chunk, and it never mutates the graph.
+     */
+    private LegacyPowerRemovalDecision.Result classifyRemoval(
+        LegacyPowerCableHostState.SetRemovedContext context) {
+
+        boolean chunkUnloadPending =
+            context == LegacyPowerCableHostState.SetRemovedContext.AFTER_CHUNK_UNLOAD;
+        if (chunkUnloadPending) {
+            return LegacyPowerRemovalDecision.classify(true, false, false, false);
+        }
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return LegacyPowerRemovalDecision.classify(false, false, false, false);
+        }
+
+        BlockPos pos = getBlockPos();
+        LevelChunk chunk = serverLevel.getChunkSource().getChunkNow(
+            pos.getX() >> 4,
+            pos.getZ() >> 4);
+        if (chunk == null) {
+            return LegacyPowerRemovalDecision.classify(false, false, false, false);
+        }
+
+        boolean currentBlockIsCable =
+            chunk.getBlockState(pos).is(ModBlocks.PROTOTYPE_POWER_CABLE.get());
+        BlockEntity currentBlockEntity = chunk.getBlockEntity(pos);
+
+        return LegacyPowerRemovalDecision.classify(
+            false,
+            true,
+            currentBlockIsCable,
+            currentBlockEntity == this);
     }
 
     /** Temporary prototype diagnostic; remove or lower to debug after lifecycle validation. */
