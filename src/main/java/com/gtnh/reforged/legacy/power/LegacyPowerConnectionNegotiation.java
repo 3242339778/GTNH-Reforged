@@ -92,7 +92,8 @@ public final class LegacyPowerConnectionNegotiation {
 
     /**
      * Mirrors the compatible-pipe predicate:
-     * thisClass.isInstance(other) || otherClass.isInstance(this).
+     * thisClass.isInstance(other) || otherClass.isInstance(this). For class
+     * tokens, the equivalent test is symmetric isAssignableFrom().
      */
     public static boolean compatiblePipeClasses(
         Class<?> thisPipeClass,
@@ -100,8 +101,8 @@ public final class LegacyPowerConnectionNegotiation {
         if (thisPipeClass == null || otherPipeClass == null) {
             return false;
         }
-        return thisPipeClass.isInstance(otherPipeClass)
-            || otherPipeClass.isInstance(thisPipeClass);
+        return thisPipeClass.isAssignableFrom(otherPipeClass)
+            || otherPipeClass.isAssignableFrom(thisPipeClass);
     }
 
     /**
