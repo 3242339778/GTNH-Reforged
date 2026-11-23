@@ -13,9 +13,11 @@ public final class ModItems {
 
     public static final DeferredItem<Item> IRON_DUST = ITEMS.registerSimpleItem("iron_dust");
     public static final DeferredItem<Item> IRON_INGOT = ITEMS.registerSimpleItem("iron_ingot");
+
     public static final DeferredItem<BlockItem> PROTOTYPE_POWER_CABLE =
-        ITEMS.register("prototype_power_cable",
-            () -> new BlockItem(ModBlocks.PROTOTYPE_POWER_CABLE.get(), new Item.Properties()));
+        ITEMS.registerItem(
+            "prototype_power_cable",
+            properties -> new BlockItem(ModBlocks.PROTOTYPE_POWER_CABLE.get(), properties));
 
     private ModItems() {
     }
