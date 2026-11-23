@@ -75,6 +75,7 @@ class LegacyPowerCableHostStateTest {
             LegacyPowerDirection.SOUTH,
             LegacyPowerNeighborLookup.loadedWithBlockEntity(new Object()));
 
+        host.prepareAdjacentBlockChange();
         boolean changed = host.onAdjacentBlockChange(0b000101, 72L);
 
         assertTrue(changed);
@@ -95,6 +96,7 @@ class LegacyPowerCableHostStateTest {
             LegacyPowerDirection.NORTH,
             LegacyPowerNeighborLookup.loadedWithoutBlockEntity());
 
+        host.prepareAdjacentBlockChange();
         assertFalse(host.onAdjacentBlockChange(0b000001, 90L));
         assertEquals(LegacyPowerNeighborCache.CacheStatus.MISS,
             host.neighborCache().cachedResult(LegacyPowerDirection.NORTH, false, tile -> false).status());
