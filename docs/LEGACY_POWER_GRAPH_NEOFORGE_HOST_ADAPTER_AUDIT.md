@@ -366,3 +366,35 @@ The user ran the following commands after pulling the neighbor-change implementa
 - `.gradlew.bat compileJava --rerun` — BUILD SUCCESSFUL in 25s; `compileJava` executed, `processResources` up-to-date.
 
 This verifies the pure-Java host-state tests and a forced Java compilation of the current NeoForge adapter. It does not yet verify live in-game neighbor notifications, reciprocal connection negotiation, or delayed connection-check behavior.
+
+
+## Connection-check scheduling and direction policy audit (GT5-Unofficial 5.09.54.275)
+
+Source chain inspected:
+- `MetaPipeEntity.setCheckConnections()`, `connect()`, `checkConnections()`, `disconnect()`
+- `MTECable.onPostTick()`, `MTECable.isBuiltinCable()`, `MTECable.connect()`, `MTECable.disconnect()`
+- `BaseMetaPipeEntity.scheduleConnectionCheck()`, `tickManagedCable()`, `updateConnections()`, `onNeighborBlockChange()`
+
+### Scheduling
+
+`MetaPipeEntity.setCheckConnections()` is server-only and has three dispatch paths, in this order:
+
+1. A built-in non-ticking cable (`BaseMetaPipeEntity.isNonTickingCable()`) calls `scheduleConnectionCheck()`. This sets `connectionCheckPending`, disables ordinary ticking, and places the host in the identity-based managed-cable set. The next manager pass runs a pending check, updates host connection state, and rejoins the energy net. Traditional-style managed cables also auto-check every 20 world ticks.
+2. Otherwise, a tick-disabled host or a meta tile whose `deferCheckConnection()` returns false checks immediately.
+3. Otherwise it sets `mCheckConnections`; normal ticking cable subclasses consume this on their 20-tick `onPostTick` cadence. Their recurring check condition is `tick % 20 == 0 && (mCheckConnections || !getGT6StyleConnection())`.
+
+Built-in `MTECable` instances use the managed path. `MTECable.isBuiltinCable()` is exact-class equality, so addon subclasses intentionally remain on normal tile ticks.
+
+### Direction scan and result semantics
+
+- Traditional mode (`getGT6StyleConnection() == false`) attempts all six physical directions.
+- GT6-style mode attempts only directions already marked connected. It does not discover a new open side during a check.
+- `connect(side)` returns positive for connected, zero for not connectable, and -1 when the target chunk is unloaded. `checkConnections()` disconnects only when an attempted side returns zero. Thus -1 preserves the old connection bit.
+- A successful pipe-to-pipe connection sets the local side and recursively connects the opposite side if it was not already set.
+- Disconnect clears the local bit and recursively disconnects a compatible neighboring pipe's opposite side.
+- The cable's `connect()` and `disconnect()` overrides call `BaseMetaPipeEntity.updateConnections()` on the server. The base method only acts when masks differ; it marks cable topology changed, invalidates paths for removed bits, copies the new mask, causes cable update, and syncs clients.
+- `connect()` is gated by cover state (`alwaysLookConnected`, energy input/output), color compatibility, compatible pipe class, or the cable-specific endpoint `canConnect()` policy. A bridge must preserve these as separate predicates; generic BlockEntity presence is not sufficient to mean connectable.
+
+### Implementation boundary
+
+Added pure-Java `LegacyPowerConnectionCheckPolicy` and tests. It captures dispatch selection, 20-tick execution cadence, GT6-vs-traditional direction selection, and tri-state mask application. It deliberately does not pretend that the prototype cable already implements GT cover, color, endpoint capability, pipe-class compatibility, reciprocal neighbor calls, or energy-net behavior. Those require explicit bridge interfaces and their own tests before the prototype can claim functional GT-compatible connection negotiation.
