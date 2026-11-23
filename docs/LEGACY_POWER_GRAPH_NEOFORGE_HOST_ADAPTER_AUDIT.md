@@ -97,18 +97,23 @@ Its node factories are behaviorally distinct:
 
 A generic NeoForge energy capability is not a drop-in replacement for these consumer types. Each old consumer family needs an explicit behavior adapter and tests for direction, acceptance, returned amperage, and invalidation.
 
-## NeoForge 26.3 world-query candidate
+## NeoForge 26.3 world-query adapter
 
-The 26.3 API surface was checked against the 26.3.0.114 Javadocs as a preliminary design reference. The project currently targets 26.3.0.113, so exact signatures and behavior still require compilation against that pinned MDK before implementation is marked verified.
+The project is pinned to NeoForge **26.3.0.113**. The current adapter implementation uses the 26.3 API surface documented by the 26.3.0.114 Javadocs as a preliminary signature reference; the user's local Gradle compile/test run is the required verification against the exact pinned dependency.
 
-Candidate server-side lookup sequence:
+Implemented host class: `NeoForgePowerNeighborAccess` in the `legacy.power.neoforge` package.
 
-1. Obtain the target chunk through `ServerLevel.getChunkSource().getChunkNow(chunkX, chunkZ)`.
-2. If it returns null, report `UNLOADED` and do not call a chunk-loading method.
-3. If it returns a `LevelChunk`, query that already-loaded chunk for the `BlockEntity` at the target `BlockPos`.
-4. Return `LOADED_WITH_BLOCK_ENTITY` or `LOADED_WITHOUT_BLOCK_ENTITY` accordingly.
+Its lookup sequence is:
 
-This is preferable to using `LevelReader.hasChunk` as the long-term abstraction: that method is present in the 26.3 Javadocs but deprecated. `ServerChunkCache.hasChunk` is also present, but `getChunkNow` provides the loaded chunk handle needed for the subsequent lookup without a second world-level retrieval. Do not use `getChunk(x, z, status, loadOrGenerate)` with loading enabled for graph discovery. The adapter should remain server-thread-only and should not enqueue chunk tickets or otherwise alter chunk residency.
+1. Convert one of the six `LegacyPowerDirection` values to the matching Minecraft `Direction`. `UNKNOWN` is rejected.
+2. Compute the adjacent immutable `BlockPos` and detect whether its X/Z chunk coordinates differ from the origin.
+3. Consult `LegacyPowerNeighborCache`. A cross-chunk lookup clears that direction before any loaded-state check. A cached removed `BlockEntity` is discarded; a cached object whose position does not match returns the legacy null result without eviction.
+4. For cross-chunk positions only, call `ServerLevel.isLoaded(target)`. If false, return `UNLOADED` and do not call `getBlockEntity`.
+5. Otherwise call `ServerLevel.getBlockEntity(target)`, cache the loaded-empty or exact block-entity result, and return it.
+
+This deliberately avoids deprecated `LevelReader.hasChunk` / `hasChunkAt` and does not use a chunk retrieval API that could load or generate a chunk. `getBlockEntity` is only called for a cross-chunk target after `isLoaded` has returned true; same-chunk access follows the legacy direct lookup path. The adapter is explicitly server-side (`ServerLevel`) and its caller must invoke it on the logical server thread. It does not itself mutate graph state.
+
+This is a narrow adjacent-block-entity adapter, not yet a complete implementation of `LegacyPowerTopologyAccess`: cable classification, connection bits, node bindings, map membership, energy-source detection, and graph clearing still belong to the future GT cable host.
 
 Pure-Java result contract now implemented as `LegacyPowerNeighborLookup` (five focused tests; both the focused test and complete `legacy.power.*Test` suite passed locally on 2026-11-23). The separate `LegacyPowerConnectionResult` contract now models the `connect(side)` tri-state and preserves the existing connection bit on `UNLOADED`; its new focused tests are awaiting local verification:
 
@@ -128,7 +133,7 @@ Reference API pages: [Level](https://aldak0.ru/javadoc/26.3.x/net/minecraft/worl
 | Cable `nodePath` binding | `LegacyPowerPipeBinding` / `LegacyPowerCableState` | Store/retrieve the exact path object and update connection snapshot |
 | `getNodeMap()` fallback | `LegacyPowerTopologyAccess.getNodeMapOwner` / `LegacyPowerTransferAccess.getNodeMapOwner` | Prefer node; otherwise resolve the bound path's graph owner |
 | Six-way connection state | `LegacyPowerTopologyAccess.isConnected` / `LegacyPowerConnectionResult` | Use the real cable connection state and correct direction mapping; preserve the existing bit when neighbor lookup is unloaded |
-| Neighbor lookup | `LegacyPowerNeighborLookup` plus `LegacyPowerTopologyAccess.getNeighbor` | Keep loaded-empty and unloaded distinct at the host boundary; map them to legacy null only in the graph-walk caller |
+| Neighbor lookup | `LegacyPowerNeighborLookup`, `LegacyPowerNeighborCache`, `NeoForgePowerNeighborAccess` | Keep loaded-empty and unloaded distinct at the host boundary; map them to legacy null only in the graph-walk caller |
 | Pipe classification | `LegacyPowerTopologyAccess.isPipe` | Only GT power cables are traversable, not every pipe/fluid pipe |
 | Power-specific node factories | `LegacyPowerNodeBuildAccess` | Construct the right pipe/dead-end/consumer node types |
 | Path creation | `LegacyPowerNodeBuildAccess.createPath` | Bind every cable in order; preserve identity and owner |
@@ -144,7 +149,7 @@ Reference API pages: [Level](https://aldak0.ru/javadoc/26.3.x/net/minecraft/worl
 2. The current repository does not yet contain a ported `BaseMetaPipeEntity`, `MetaPipeEntity`, or concrete GT cable block entity. Therefore a concrete adapter cannot be honestly implemented against real host objects yet.
 3. The future ported cable block entity should own `LegacyPowerGraphNode` and `LegacyPowerPath` references directly. Do not attempt to put the old 1.7.10 `Node` class and the new pure-Java node into the same typed field or mix the two Minecraft class universes.
 4. Preserve stable object identity for cable handles, node objects, path objects, map roots, and consumer adapters for the lifetime of a graph.
-5. World access must be server-thread-only for graph mutation. Any asynchronous chunk/world API must be marshalled to the logical server thread before touching this graph.
+5. World access must be server-thread-only for graph mutation. `NeoForgePowerNeighborAccess` documents this caller contract; it does not schedule work or silently move calls between threads. Any asynchronous chunk/world API must be marshalled to the logical server thread before touching this graph.
 6. The graph core is not a replacement for NeoForge's energy capability. NeoForge capability exposure/transfer belongs at the consumer/source boundary; GTNH's graph remains responsible for its legacy routing, voltage loss, amperage limits, locks, overload, and partial-retry semantics.
 7. Save/load behavior needs a separate decision. The original graph is runtime topology state and should be rebuilt from loaded world state rather than blindly serializing stale object references.
 
