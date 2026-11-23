@@ -109,7 +109,7 @@ A generic NeoForge energy capability is not a drop-in replacement for these cons
 
 The project is pinned to NeoForge **26.3.0.113**. The active adapter in the current source tree is:
 
-`com.gtnh.reforged.legacy.power.NeoForgeLegacyPowerNeighborAccess`
+`com.gtnh.reforged.legacy.power.bridge.neoforge.NeoForgeLegacyPowerNeighborAccess`
 
 Its lookup sequence is:
 
@@ -121,9 +121,9 @@ Its lookup sequence is:
 
 This adapter uses the non-loading chunk lookup path and is explicitly server-side. Call it on the logical server thread. It does not itself mutate graph state.
 
-**Important package-boundary finding:** this class currently resides in the base `legacy.power` package even though it imports Minecraft 26.3 classes. It is a Layer 3 Minecraft Bridge class and should move to a bridge namespace. Also, `LegacyPowerCableHostState.createNeighborAccess(ServerLevel, BlockPos)` currently constructs it, which creates a core-to-bridge dependency; remove that factory from the pure-Java state bundle when performing the boundary refactor.
+**Package-boundary refactor completed:** this class now resides in `legacy.power.bridge.neoforge`, the Layer 3 Minecraft Bridge namespace. `LegacyPowerCableHostState` no longer imports or constructs Minecraft adapters; a future Layer 4 host should construct the bridge with `hostState.neighborCache()`.
 
-A second implementation also exists at `com.gtnh.reforged.legacy.power.neoforge.NeoForgePowerNeighborAccess`. It uses `ServerLevel.isLoaded(target)` and `ServerLevel.getBlockEntity(target)`, which is not the same implementation as the active root-package adapter. The host-state factory constructs `NeoForgeLegacyPowerNeighborAccess`, not the subpackage class. Do not maintain two competing adapters without an explicit reason; inspect its source/test references and consolidate them after verifying the pinned 26.3.0.113 API and no-force-load behavior.
+The duplicate `legacy.power.neoforge.NeoForgePowerNeighborAccess` implementation (which used `ServerLevel.isLoaded/getBlockEntity`) has been removed. There is now one authoritative implementation, using `getChunkSource().getChunkNow(...)` and `LevelChunk.getBlockEntity(...)`.
 
 The current adapter is a narrow adjacent-BlockEntity lookup, not a complete implementation of `LegacyPowerTopologyAccess`: cable classification, connection bits, node bindings, map membership, energy-source detection, and graph clearing still belong to the future GT cable host.
 
@@ -188,7 +188,7 @@ Primary 26.3.x source references:
 ## Recommended implementation order
 
 1. Integrate `LegacyPowerCableState` into the ported cable/base-tile state owner: node/path bindings, connection bits, occupied-side snapshot, and invalidation hooks.
-2. Implement a read-only world adapter with explicit loaded-neighbor status, legacy graph-walk null mapping, six-side neighbor-cache invalidation, connection-check tri-state semantics, pipe classification, and energy-source detection. The narrow `NeoForgePowerNeighborAccess` BlockEntity lookup portion is now implemented; the remaining topology operations still await the ported GT cable host.
+2. Implement a read-only world adapter with explicit loaded-neighbor status, legacy graph-walk null mapping, six-side neighbor-cache invalidation, connection-check tri-state semantics, pipe classification, and energy-source detection. The narrow `NeoForgeLegacyPowerNeighborAccess` BlockEntity lookup portion is now implemented; the remaining topology operations still await the ported GT cable host.
 3. Implement path binding and lock reload against the new cable objects.
 4. Implement power-specific node factories and consumer discovery one family at a time.
 5. Wire the source transfer coordinator to the logical server tick and cable source flag.
@@ -203,8 +203,8 @@ Primary 26.3.x source references:
 - `LegacyPowerNeighborLookup`: implemented with five focused unit tests; `LegacyPowerNeighborLookupTest` and the complete `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
 - `LegacyPowerNeighborCache`: implemented as a pure-Java six-direction cache model with eleven focused tests; the final focused suite and the full `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
 - `LegacyPowerConnectionResult`: implemented to preserve the legacy positive / zero / -1 connection result semantics; `LegacyPowerConnectionResultTest` and the complete `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
-- `NeoForgeLegacyPowerNeighborAccess` (base `legacy.power` package): current active adapter uses `getChunkSource().getChunkNow(...)` and `LevelChunk.getBlockEntity(...)`; local `compileJava` success against the project's pinned NeoForge 26.3.0.113 was reported on 2026-11-23. It still needs relocation into a bridge package.
-- `legacy.power.neoforge.NeoForgePowerNeighborAccess`: a second implementation using `isLoaded/getBlockEntity` remains in the tree; consolidate after checking references and tests.
+- `NeoForgeLegacyPowerNeighborAccess` (`legacy.power.bridge.neoforge`): current active adapter uses `getChunkSource().getChunkNow(...)` and `LevelChunk.getBlockEntity(...)`; local `compileJava` success against the project's pinned NeoForge 26.3.0.113 was reported on 2026-11-23. It still needs relocation into a bridge package.
+- Duplicate adapter consolidation: completed; only `legacy.power.bridge.neoforge.NeoForgeLegacyPowerNeighborAccess` remains.
 - Concrete NeoForge GT cable/block-entity host: not implemented. The current main mod entry point registers only items.
 - Block and BlockEntityType registration API: audited against the NeoForge 26.3.x DeferredRegister source; project integration pending.
 - GameTest registration: audited against 26.3.x `RegisterGameTestsEvent`; exact `GameTestInstance` construction must be verified against the pinned 26.3.0.113 local dependency before implementation.
