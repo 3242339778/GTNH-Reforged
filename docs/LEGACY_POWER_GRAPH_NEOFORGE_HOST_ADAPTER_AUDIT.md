@@ -424,3 +424,25 @@ The world adapter must not map every absent neighbor BlockEntity to UNLOADED. GT
 - Reciprocal connection callbacks and recursion protection.
 - `BaseMetaPipeEntity.updateConnections()` topology/path invalidation and neighbor-cable invalidation.
 - Managed-cable manager/tick integration.
+
+
+## Connection-mask publication and topology update audit
+
+Source: `BaseMetaPipeEntity.updateConnections()`, `markCableTopologyChanged()`, `invalidateNodePaths()`, and `MTECable.connect()/disconnect()` in GT5-Unofficial 5.09.54.275.
+
+Exact order when the meta-tile mask differs from the host's stored mask:
+
+1. `markCableTopologyChanged(false)` runs before reading/publishing the new mask. For MTECable hosts it invalidates the current graph root and each adjacent loaded MTECable graph root. It does not immediately clear graph objects.
+2. Compute `removedConnections = oldMask & ~newMask`.
+3. Invalidate only paths corresponding to removed directions. A direct node invalidates its matching direction paths; an intermediate path is invalidated only if its bind-time `nodePathConnections` snapshot intersects the removed mask.
+4. Copy the new mask to the host.
+5. Call `GregTechAPI.causeCableUpdate(...)`.
+6. Synchronize the connection mask to clients (the sync helper suppresses duplicate values).
+
+`MTECable.connect()` calls `updateConnections()` only after a positive connection result and on the server. `MTECable.disconnect()` calls it after the superclass disconnect on the server. The base updater itself is a no-op when the host and meta-tile masks are equal.
+
+Added pure-Java `LegacyPowerConnectionMaskChange` and `LegacyPowerCableState.updateConnectionFlags()`. The state method preserves the critical local ordering: invalidate the graph root, invalidate removed-side paths using the old path snapshot, then publish the new connection mask. Its result reports old/new masks and added/removed bits. Tests cover removal, addition, no-op updates, and intermediate-path snapshot behavior.
+
+### Bridge work still outstanding
+
+The NeoForge host must still mirror the external side effects in the same order: invalidate neighboring loaded cable graph roots without loading chunks, issue the equivalent block/network update, and synchronize the connection mask. The pure-Java state update does not claim those world effects have been implemented.
