@@ -71,15 +71,6 @@ public final class LegacyPowerCableHostState {
         cableState.invalidateGraphForTopologyChange(serverTick);
     }
 
-    /**
-     * Convenience guard for future host integration: the bundle is not
-     * thread-safe and all graph/cache mutation must remain on the server thread.
-     */
-    public void requireServerThread(boolean isServerThread) {
-        if (!isServerThread) {
-            throw new IllegalStateException("Legacy power cable state must be accessed on the server thread");
-        }
-    }
 
     /**
      * Creates a world-query adapter over this host's own cache. The returned
