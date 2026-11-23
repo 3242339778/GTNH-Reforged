@@ -134,6 +134,84 @@ class LegacyPowerCableStateTest {
         assertTrue(unaffected.isValid());
     }
 
+
+    @Test
+    void connectionMaskUpdateInvalidatesTopologyAndRemovedPathsBeforePublishingMask() {
+        LegacyPowerCableState cable = new LegacyPowerCableState();
+        LegacyPowerGraphNode root = node();
+        LegacyPowerPath east = new LegacyPowerPath(List.of(new FakePipe()));
+        LegacyPowerPath north = new LegacyPowerPath(List.of(new FakePipe()));
+        root.setPath(LegacyPowerDirection.EAST, east);
+        root.setPath(LegacyPowerDirection.NORTH, north);
+        cable.setNode(root);
+        cable.setConnectionState(0b100100, true);
+
+        LegacyPowerConnectionMaskChange change = cable.updateConnectionFlags(
+            0b000100, 55, side -> 1 << side.ordinalIndex());
+
+        assertTrue(change.changed());
+        assertEquals(0b100100, change.oldMask());
+        assertEquals(0b000100, change.newMask());
+        assertEquals(0, change.addedConnections());
+        assertEquals(0b100000, change.removedConnections());
+        assertEquals(0b000100, cable.getConnectionFlags());
+        assertFalse(root.getGraphState().isNodeMapValid());
+        assertEquals(1, root.getGraphState().getTopologyVersion());
+        assertEquals(55, root.getGraphState().getTopologyChangeTick());
+        assertFalse(east.isValid());
+        assertTrue(north.isValid());
+    }
+
+    @Test
+    void addingConnectionInvalidatesGraphButDoesNotInvalidateRemovedSidePaths() {
+        LegacyPowerCableState cable = new LegacyPowerCableState();
+        LegacyPowerGraphNode root = node();
+        LegacyPowerPath east = new LegacyPowerPath(List.of(new FakePipe()));
+        root.setPath(LegacyPowerDirection.EAST, east);
+        cable.setNode(root);
+        cable.setConnectionState(0, true);
+
+        LegacyPowerConnectionMaskChange change = cable.updateConnectionFlags(
+            0b100000, 61, side -> 1 << side.ordinalIndex());
+
+        assertEquals(0b100000, change.addedConnections());
+        assertEquals(0, change.removedConnections());
+        assertTrue(east.isValid());
+        assertFalse(root.getGraphState().isNodeMapValid());
+    }
+
+    @Test
+    void unchangedConnectionMaskDoesNotInvalidateGraph() {
+        LegacyPowerCableState cable = new LegacyPowerCableState();
+        LegacyPowerGraphNode root = node();
+        cable.setNode(root);
+        cable.setConnectionState(0b001001, true);
+
+        LegacyPowerConnectionMaskChange change = cable.updateConnectionFlags(
+            0b001001, 70, side -> 1 << side.ordinalIndex());
+
+        assertFalse(change.changed());
+        assertEquals(0b001001, change.oldMask());
+        assertEquals(0b001001, change.newMask());
+        assertTrue(root.getGraphState().isNodeMapValid());
+        assertEquals(0, root.getGraphState().getTopologyVersion());
+    }
+
+    @Test
+    void removedConnectionInvalidatesIntermediatePathOnlyWhenSnapshotContainsIt() {
+        LegacyPowerCableState cable = new LegacyPowerCableState();
+        LegacyPowerPath path = new LegacyPowerPath(List.of(new FakePipe()));
+        cable.setConnectionState(0b100100, true);
+        cable.setNodePath(path);
+
+        LegacyPowerConnectionMaskChange change = cable.updateConnectionFlags(
+            0b000100, 72, side -> 1 << side.ordinalIndex());
+
+        assertEquals(0b100000, change.removedConnections());
+        assertFalse(path.isValid());
+        assertEquals(0b000100, cable.getConnectionFlags());
+    }
+
     private static LegacyPowerGraphNode node() {
         return new LegacyPowerGraphNode(1, new Object(), null);
     }
