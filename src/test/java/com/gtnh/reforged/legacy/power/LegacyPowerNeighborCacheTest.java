@@ -117,6 +117,23 @@ class LegacyPowerNeighborCacheTest {
     }
 
     @Test
+    void cachedTileCoordinateMismatchReturnsNullEquivalentWithoutEviction() {
+        Object tile = new Object();
+        cache.remember(LegacyPowerDirection.NORTH, LegacyPowerNeighborLookup.loadedWithBlockEntity(tile));
+
+        LegacyPowerNeighborCache.CacheResult mismatch =
+            cache.cachedResult(LegacyPowerDirection.NORTH, false, cached -> false, cached -> false);
+
+        assertEquals(LegacyPowerNeighborCache.CacheStatus.MISMATCH, mismatch.status());
+        assertNull(mismatch.tile());
+
+        LegacyPowerNeighborCache.CacheResult stillCached =
+            cache.cachedResult(LegacyPowerDirection.NORTH, false, cached -> false, cached -> true);
+        assertEquals(LegacyPowerNeighborCache.CacheStatus.TILE, stillCached.status());
+        assertSame(tile, stillCached.tile());
+    }
+
+    @Test
     void unknownCannotAddressPhysicalNeighborCache() {
         assertThrows(IllegalArgumentException.class,
             () -> cache.cachedResult(LegacyPowerDirection.UNKNOWN, false, cached -> false));
