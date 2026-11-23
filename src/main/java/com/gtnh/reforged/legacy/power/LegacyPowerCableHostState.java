@@ -1,8 +1,8 @@
 package com.gtnh.reforged.legacy.power;
 
 /**
- * Lifecycle-owned state bundle intended to be held by a future NeoForge
- * cable BlockEntity.
+ * Lifecycle-owned state bundle intended to be held by a NeoForge cable
+ * BlockEntity.
  *
  * <p>The bundle deliberately does not extend BlockEntity and does not perform
  * world access. It keeps the extracted legacy graph state and six-direction
@@ -13,11 +13,22 @@ package com.gtnh.reforged.legacy.power;
  * invalidate, chunk unload, and adjacent-block changes. A coordinate change
  * clears every cached direction. Positive neighbor references therefore
  * survive the former callbacks but not a position change.</p>
+ *
+ * <p>Modern BlockEntity.setRemoved() is not equivalent to the old permanent
+ * invalidate event: it can follow onChunkUnloaded(). The host therefore
+ * records the chunk-unload callback so the adapter can distinguish that
+ * sequence from a setRemoved() with no preceding chunk unload.</p>
  */
 public final class LegacyPowerCableHostState {
 
+    public enum SetRemovedContext {
+        AFTER_CHUNK_UNLOAD,
+        WITHOUT_CHUNK_UNLOAD
+    }
+
     private final LegacyPowerCableState cableState = new LegacyPowerCableState();
     private final LegacyPowerNeighborCache neighborCache = new LegacyPowerNeighborCache();
+    private boolean chunkUnloadPending;
 
     public LegacyPowerCableState cableState() {
         return cableState;
@@ -27,19 +38,34 @@ public final class LegacyPowerCableHostState {
         return neighborCache;
     }
 
-    /** Forward from BlockEntity.validate()/the corresponding load callback. */
+    /** Forward from BlockEntity.onLoad(); starts a new loaded lifecycle. */
     public void onValidate() {
+        chunkUnloadPending = false;
         neighborCache.clearEmptyMarkers();
     }
 
-    /** Forward from BlockEntity.invalidate()/the corresponding removal callback. */
+    /** Forward from the old invalidate-equivalent cache cleanup only. */
     public void onInvalidate() {
         neighborCache.clearEmptyMarkers();
     }
 
-    /** Forward from BlockEntity.onChunkUnloaded() or its 26.3 equivalent. */
+    /** Forward from BlockEntity.onChunkUnloaded(). */
     public void onChunkUnload() {
+        chunkUnloadPending = true;
         neighborCache.clearEmptyMarkers();
+    }
+
+    /**
+     * Classifies the next setRemoved callback. This does not itself clear the
+     * graph: the Minecraft-facing host must additionally establish whether
+     * the block was actually replaced before requesting graph cleanup.
+     */
+    public SetRemovedContext onSetRemoved() {
+        if (chunkUnloadPending) {
+            chunkUnloadPending = false;
+            return SetRemovedContext.AFTER_CHUNK_UNLOAD;
+        }
+        return SetRemovedContext.WITHOUT_CHUNK_UNLOAD;
     }
 
     /** Forward from the block's neighbor-update callback. */
@@ -68,5 +94,4 @@ public final class LegacyPowerCableHostState {
     public void invalidateGraphForTopologyChange(long serverTick) {
         cableState.invalidateGraphForTopologyChange(serverTick);
     }
-
 }
