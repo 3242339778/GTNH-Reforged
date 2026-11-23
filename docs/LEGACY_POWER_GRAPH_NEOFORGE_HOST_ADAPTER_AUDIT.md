@@ -134,7 +134,7 @@ Pure-Java result contracts:
 
 ## 26.3 registration and GameTest integration audit
 
-The current mod entry point receives the NeoForge mod event bus, but only registers `ModItems.ITEMS`. There is not yet a block registry, a block-entity-type registry, or a concrete cable block/entity. Keep that fact explicit: the host-state bundle is not a registered game object.
+The current mod entry point registers item, block, and BlockEntityType DeferredRegisters. A deliberately limited `PrototypePowerCableBlock` and `PrototypePowerCableBlockEntity` are present; the host-state bundle itself remains a pure-Java component owned by that registered BlockEntity.
 
 The official NeoForge 26.3.x `DeferredRegister` source documents the expected registration shape:
 
@@ -205,11 +205,11 @@ Primary 26.3.x source references:
 - `LegacyPowerConnectionResult`: implemented to preserve the legacy positive / zero / -1 connection result semantics; `LegacyPowerConnectionResultTest` and the complete `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
 - `NeoForgeLegacyPowerNeighborAccess` (`legacy.power.bridge.neoforge`): current active adapter uses `getChunkSource().getChunkNow(...)` and `LevelChunk.getBlockEntity(...)`; local `compileJava` success against the project's pinned NeoForge 26.3.0.113 was reported on 2026-11-23. The bridge package relocation is complete; re-run local compilation after the package move.
 - Duplicate adapter consolidation: completed; only `legacy.power.bridge.neoforge.NeoForgeLegacyPowerNeighborAccess` remains.
-- Concrete NeoForge GT cable/block-entity host: not implemented. The current main mod entry point registers only items.
-- Block and BlockEntityType registration API: audited against the NeoForge 26.3.x DeferredRegister source; project integration pending.
+- Concrete NeoForge GT cable host: not implemented. A prototype Block/BlockEntity shell is registered, but it does not implement GT cable connection or energy behavior.
+- Block and BlockEntityType registration API: integrated and compile-verified against the project's pinned NeoForge 26.3.0.113 artifact; a real client launch and placement/break smoke test also succeeded.
 - GameTest registration: audited against 26.3.x `RegisterGameTestsEvent`; exact `GameTestInstance` construction must be verified against the pinned 26.3.0.113 local dependency before implementation.
 - Concrete GT consumer-family adapters: not implemented.
-- In-game/GameTest verification: not implemented.
+- In-game/GameTest verification: initial client launch, `/give`, placement, and breaking smoke test succeeded on 2026-11-23. Dedicated GameTest coverage for lifecycle callbacks and unloaded-chunk behavior remains pending.
 
 ## Cable Block / BlockEntity implementation gate (2026-11-23)
 
@@ -293,3 +293,33 @@ The host does not clear the graph merely because `setRemoved()` runs: the precis
 ### Verification status
 
 The source was authored against the NeoForge 26.3 DeferredRegister examples and 26.3.x BlockEntity extension lifecycle surface. It has **not yet been compiled against the project's pinned NeoForge 26.3.0.113 artifact**. Local `compileJava`, focused tests, and a launch/placement smoke test remain required before treating the shell as verified.
+
+
+## In-game prototype smoke test and lifecycle diagnostics (2026-11-23)
+
+The development client successfully reached the Minecraft 26.3 main menu with NeoForge 26.3.0.113. The prototype item was obtained using `/give`, placed in a world, and broken without a crash. The purple/black appearance is the expected missing-texture placeholder at this stage; model and texture assets are not part of this host-lifecycle milestone.
+
+Breaking the prototype does not drop an item by design. No loot table or block-drop behavior has been implemented yet, and this is not a regression to fix in this milestone.
+
+The BlockEntity now emits temporary INFO lifecycle diagnostics for:
+- `onLoad()`
+- `onChunkUnloaded()`
+- `setRemoved()`
+
+Each diagnostic includes logical side, BlockPos, and the identity hash of the owned `LegacyPowerCableHostState`. This allows a manual runtime check to distinguish:
+- first attachment/load of a BlockEntity;
+- chunk unload callback;
+- removal callback;
+- a newly-created BlockEntity after the chunk/world is loaded again (new host-state identity is expected because graph object references are runtime-only).
+
+These log messages are temporary prototype instrumentation and should be reduced or removed after the callback sequence has been observed. They do not claim that the full GT cable removal/invalidation policy is implemented. In particular, `setRemoved()` currently clears only negative neighbor-cache markers; graph invalidation/removal semantics remain a separate integration task.
+
+### Manual lifecycle check still required
+
+1. Place the prototype cable and find its `onLoad` line in `latest.log`.
+2. Record the `hostState@` identity for that position.
+3. Move far enough away for the chunk to unload, then return. Check whether `onChunkUnloaded` is emitted and whether a subsequent `onLoad` has a new identity.
+4. Break the block and check for `setRemoved`. No item drop is expected.
+5. Re-enter the world and confirm there is no load error.
+
+The in-game placement/break result proves the registered Block and BlockItem path works. It does not, by itself, prove every lifecycle callback or neighbor-cache behavior; those remain explicitly unverified until the log sequence and/or a pinned-version GameTest confirms them.
