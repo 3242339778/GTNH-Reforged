@@ -1,7 +1,5 @@
 package com.gtnh.reforged.legacy.power;
 
-import java.util.Objects;
-
 /**
  * Lifecycle-owned state bundle intended to be held by a future NeoForge
  * cable BlockEntity.
@@ -71,16 +69,4 @@ public final class LegacyPowerCableHostState {
         cableState.invalidateGraphForTopologyChange(serverTick);
     }
 
-
-    /**
-     * Creates a world-query adapter over this host's own cache. The returned
-     * adapter must not outlive the host BlockEntity's current position.
-     */
-    public NeoForgeLegacyPowerNeighborAccess createNeighborAccess(
-        net.minecraft.server.level.ServerLevel level,
-        net.minecraft.core.BlockPos position) {
-        Objects.requireNonNull(level, "level");
-        Objects.requireNonNull(position, "position");
-        return new NeoForgeLegacyPowerNeighborAccess(level, position, neighborCache);
-    }
 }
