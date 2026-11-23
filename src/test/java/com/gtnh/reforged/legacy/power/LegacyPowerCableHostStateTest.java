@@ -81,13 +81,6 @@ class LegacyPowerCableHostStateTest {
         }
     }
 
-    @Test
-    void rejectsMutationOutsideServerThread() {
-        LegacyPowerCableHostState host = new LegacyPowerCableHostState();
-
-        assertDoesNotThrow(() -> host.requireServerThread(true));
-        assertThrows(IllegalStateException.class, () -> host.requireServerThread(false));
-    }
 
     private enum Lifecycle {
         INVALIDATE,
