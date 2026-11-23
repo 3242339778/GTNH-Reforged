@@ -250,8 +250,10 @@ MTECable stores thickness, material, loss per meter, amperage, voltage, insulati
 For the pinned NeoForge 26.3 line, the current BlockEntity lifecycle surface includes the NeoForge IBlockEntityExtension callbacks onLoad() and onChunkUnloaded(), plus vanilla BlockEntity.setRemoved(). Map the host component callbacks as follows:
 
 - On first attachment/load, call the host state's validation/cache initialization hook once the level is available.
-- On onChunkUnloaded(), forward to LegacyPowerCableHostState.onChunkUnload().
-- On setRemoved(), forward to LegacyPowerCableHostState.onInvalidate() and invalidate the cable's graph state according to the upstream removal path; do not confuse ordinary chunk unload with permanent block removal.
+- On onChunkUnloaded(), forward to LegacyPowerCableHostState.onChunkUnload(); this performs the upstream-equivalent immediate graph cleanup and negative-cache-marker cleanup.
+- On setRemoved() after onChunkUnloaded(), do not repeat permanent-removal cleanup: the graph was already cleared by the unload path.
+- On setRemoved() without a preceding chunk unload, inspect only an already-loaded chunk. Clear the graph only when the block or host instance is confirmed replaced (the NeoForge equivalent of upstream BaseMetaPipeEntity.invalidate()); UNKNOWN must not trigger destructive cleanup.
+- BaseTileEntity.invalidate() and BaseMetaPipeEntity.invalidate() are distinct layers: the former clears cache markers, while the latter also invokes meta-tile removal and graph invalidation.
 - On the block's neighbor callback, clear negative cache markers and schedule/perform server-side connection validation at the correct lifecycle point. The upstream code deliberately defers connection checking because neighboring structures may still be loading.
 - If a host is ever moved/repositioned by a non-vanilla mechanism, call onPositionChanged(); normal position-bound BlockEntities do not need a speculative relocation system.
 
@@ -314,12 +316,15 @@ Each diagnostic includes logical side, BlockPos, and the identity hash of the ow
 
 These log messages are temporary prototype instrumentation and should be reduced or removed after the callback sequence has been observed. They do not claim that the full GT cable implementation exists. The callback sequence has now been observed on the 26.3.0.113 runtime: server-side `ChunkEvent.Unload`, `onChunkUnloaded()`, then `setRemoved()` classified as `CHUNK_UNLOAD`, followed by a new `onLoad()` instance when the chunk is loaded again. The host's graph-cleanup forwarding now follows the audited GT5U `onUnload()` and `invalidate()` paths; actual graph references are not yet populated by the prototype cable.
 
-### Manual lifecycle check still required
+### Manual lifecycle check (completed 2026-11-23)
 
-1. Place the prototype cable and find its `onLoad` line in `latest.log`.
-2. Record the `hostState@` identity for that position.
-3. Move far enough away for the chunk to unload, then return. Check whether `onChunkUnloaded` is emitted and whether a subsequent `onLoad` has a new identity.
-4. Break the block and check for `setRemoved`. No item drop is expected.
-5. Re-enter the world and confirm there is no load error.
+The user verified the actual server-side unload sequence at BlockPos (461, 65, 435), chunk (28, 27):
 
-The in-game placement/break result proves the registered Block and BlockItem path works. It does not, by itself, prove every lifecycle callback or neighbor-cache behavior; those remain explicitly unverified until the log sequence and/or a pinned-version GameTest confirms them.
+1. Server `ChunkEvent.Unload` found the cable (`cableCount=1`).
+2. Server `onChunkUnloaded()` followed on the same host-state identity.
+3. Server `setRemoved()` followed and was classified as `CHUNK_UNLOAD`.
+4. Returning to the area created a new server BlockEntity and a new host-state identity.
+
+The client observed the same callback sequence independently. This confirms the NeoForge 26.3.0.113 callback order and the chunk-unload classifier. It does not runtime-test graph detachment because the prototype does not yet build a live graph; the new pure-Java host-state test covers the graph-clear operation.
+
+The local compile and focused/full unit-test rerun for the lifecycle mapping change are pending user verification.
