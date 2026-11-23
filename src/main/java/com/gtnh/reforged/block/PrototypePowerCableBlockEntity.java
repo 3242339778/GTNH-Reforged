@@ -2,6 +2,8 @@ package com.gtnh.reforged.block;
 
 import com.gtnh.reforged.GTNHReforged;
 import com.gtnh.reforged.legacy.power.LegacyPowerCableHostState;
+import com.gtnh.reforged.legacy.power.LegacyPowerDirection;
+import com.gtnh.reforged.legacy.power.LegacyPowerNeighborLookup;
 import com.gtnh.reforged.legacy.power.LegacyPowerRemovalDecision;
 import com.gtnh.reforged.legacy.power.bridge.neoforge.NeoForgeLegacyPowerNeighborAccess;
 import com.gtnh.reforged.registry.ModBlocks;
@@ -42,6 +44,33 @@ public final class PrototypePowerCableBlockEntity extends BlockEntity {
             serverLevel,
             getBlockPos(),
             hostState.neighborCache());
+    }
+
+    /**
+     * Called by the owning Block for each neighbor notification. The cache
+     * marker reset is unconditional; endpoint occupancy scanning and graph
+     * invalidation are server-only, matching the upstream callback.
+     */
+    public void onAdjacentBlockChange() {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            hostState.onAdjacentBlockChange();
+            return;
+        }
+
+        NeoForgeLegacyPowerNeighborAccess neighbors = createNeighborAccess();
+        int connectedSides = hostState.cableState().getConnectionFlags();
+        int occupiedSides = 0;
+        for (LegacyPowerDirection side : LegacyPowerDirection.orderedValues()) {
+            int flag = 1 << side.ordinalIndex();
+            if ((connectedSides & flag) == 0) {
+                continue;
+            }
+            LegacyPowerNeighborLookup lookup = neighbors.getNeighbor(side);
+            if (lookup.hasBlockEntity()) {
+                occupiedSides |= flag;
+            }
+        }
+        hostState.onAdjacentBlockChange(occupiedSides, serverLevel.getGameTime());
     }
 
     @Override
