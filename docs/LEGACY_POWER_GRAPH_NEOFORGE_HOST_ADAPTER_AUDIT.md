@@ -398,3 +398,29 @@ Built-in `MTECable` instances use the managed path. `MTECable.isBuiltinCable()` 
 ### Implementation boundary
 
 Added pure-Java `LegacyPowerConnectionCheckPolicy` and tests. It captures dispatch selection, 20-tick execution cadence, GT6-vs-traditional direction selection, and tri-state mask application. It deliberately does not pretend that the prototype cable already implements GT cover, color, endpoint capability, pipe-class compatibility, reciprocal neighbor calls, or energy-net behavior. Those require explicit bridge interfaces and their own tests before the prototype can claim functional GT-compatible connection negotiation.
+
+
+## Per-side connection negotiation decision model
+
+Added `LegacyPowerConnectionNegotiation` and unit tests. The decision table preserves the ordering of `MetaPipeEntity.connect(side)`:
+
+1. Evaluate color compatibility first. A mismatch rejects immediately.
+2. Evaluate cover permission (`alwaysLookConnected || letsIn || letsOut`). If false, reject immediately; even an unloaded target does not produce the unloaded result on this path.
+3. If the neighbor meta tile passes the symmetric class-instance compatibility predicate, connect locally and request a reciprocal connection only when the neighbor's opposite bit is absent.
+4. Otherwise accept GT6-style air, or the cable-specific endpoint `canConnect(side, tile)` result.
+5. Only after all preceding paths fail, test target-chunk availability. Unloaded returns the preserve-existing result; loaded returns not-connectable.
+
+The pure model also captures the symmetric class test used by GT5U (`thisClass.isInstance(other) || otherClass.isInstance(this)`) and the reciprocal-disconnect eligibility predicate. It does not execute remote callbacks or perform endpoint API calls.
+
+### Important distinction
+
+The world adapter must not map every absent neighbor BlockEntity to UNLOADED. GT5U's `connect()` obtains the neighbor (possibly null), evaluates color/cover/pipe/endpoint policy, and only then checks whether the target chunk exists. This late unloaded test is observable behavior and is now represented explicitly in the decision model.
+
+### Still not implemented
+
+- NeoForge-side cover state and color adapters.
+- GT cable/meta-tile class compatibility registry.
+- Endpoint capability adapters (GT, IC2, AE2, Galacticraft, RF).
+- Reciprocal connection callbacks and recursion protection.
+- `BaseMetaPipeEntity.updateConnections()` topology/path invalidation and neighbor-cable invalidation.
+- Managed-cable manager/tick integration.
