@@ -136,7 +136,7 @@ Pure-Java result contracts:
 
 The current mod entry point registers item, block, and BlockEntityType DeferredRegisters. A deliberately limited `PrototypePowerCableBlock` and `PrototypePowerCableBlockEntity` are present; the host-state bundle itself remains a pure-Java component owned by that registered BlockEntity.
 
-The official NeoForge 26.3.x `DeferredRegister` source documents the expected registration shape:
+The official NeoForge 26.3.x `DeferredRegister` source documents the registration API shape. The project's pinned 26.3.0.113 compile exposed API differences from the initial draft; the final project implementation now uses the overloads accepted by that pinned artifact:
 
 - Blocks: `DeferredRegister.createBlocks(MOD_ID)`.
 - Block entity types: `DeferredRegister.create(BuiltInRegistries.BLOCK_ENTITY_TYPE, MOD_ID)`.
@@ -271,7 +271,7 @@ Those behaviors remain explicit subsequent milestones. This keeps the first in-g
 
 ## Prototype cable host implementation (2026-11-23)
 
-The first Layer 4 shell is now present on the feature branch:
+The first Layer 4 shell is now present on the feature branch and has passed local compile and in-game placement/break smoke checks:
 
 - `block/PrototypePowerCableBlock`: a Block implementing `EntityBlock`, creating its dedicated BlockEntity.
 - `block/PrototypePowerCableBlockEntity`: owns exactly one stable `LegacyPowerCableHostState`; forwards `onLoad()`, `onChunkUnloaded()`, and `setRemoved()` to the corresponding cache lifecycle hooks; exposes an explicitly server-only factory for `NeoForgeLegacyPowerNeighborAccess`.
@@ -292,7 +292,7 @@ The host does not clear the graph merely because `setRemoved()` runs: the precis
 
 ### Verification status
 
-The source was authored against the NeoForge 26.3 DeferredRegister examples and 26.3.x BlockEntity extension lifecycle surface. It has **not yet been compiled against the project's pinned NeoForge 26.3.0.113 artifact**. Local `compileJava`, focused tests, and a launch/placement smoke test remain required before treating the shell as verified.
+The final registration source has been compiled successfully against the project's pinned NeoForge 26.3.0.113 artifact. The development client also launched, accepted the prototype item through `/give`, and allowed placement and breaking without a crash. The callback-level lifecycle sequence is still pending the temporary runtime diagnostics described below.
 
 
 ## In-game prototype smoke test and lifecycle diagnostics (2026-11-23)
