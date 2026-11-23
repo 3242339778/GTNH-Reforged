@@ -154,14 +154,15 @@ More concretely:
 1. Completed: move the active `NeoForgeLegacyPowerNeighborAccess` into `legacy.power.bridge.neoforge` without changing its lookup behavior.
 2. Completed: remove `createNeighborAccess(ServerLevel, BlockPos)` from `LegacyPowerCableHostState`.
 3. Completed: remove the duplicate `legacy.power.neoforge.NeoForgePowerNeighborAccess` implementation.
-4. Next: add an automated boundary check ensuring core classes do not import `net.minecraft`, `net.neoforged`, or `net.minecraftforge`.
+4. Completed: add `LegacyPowerArchitectureBoundaryTest`, which scans the Legacy Power API/core source tree and fails if Minecraft, Forge, or NeoForge type prefixes appear outside bridge/integration subpackages.
 5. Continue with the actual cable Block + BlockEntity registration in Layer 4.
 6. Add GameTests only after the real host exists; keep pure-Java unit tests as the fast behavior suite.
 
 ## 6. Verification status
 
 - Source classification: completed from the current branch source files.
-- Layer boundary refactor: bridge adapter moved, host-state factory removed, and duplicate adapter deleted in commits `5c03ad5`, `fd9fe13`, `170940b`, and `e7529dc`; local compile/test re-verification is pending.
+- Layer boundary refactor: bridge adapter moved, host-state factory removed, and duplicate adapter deleted; user-reported `compileJava`, `LegacyPowerCableHostStateTest`, and `legacy.power.*Test` all passed after the refactor on 2026-11-23.
+- Automated boundary guard: `LegacyPowerArchitectureBoundaryTest` added in commit `f99d357`; local execution is pending.
 - Pure Java graph unit tests: prior local user reports show the `legacy.power.*Test` suite passed; this review did not rerun local Gradle tasks.
 - Minecraft bridge compilation: the current project conversation records a successful local `compileJava` for the root-package adapter on 2026-11-23. Re-run after any package move.
 - Registered cable host and GameTests: not implemented / not verified in game.
