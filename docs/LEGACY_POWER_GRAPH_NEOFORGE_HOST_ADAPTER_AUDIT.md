@@ -41,6 +41,12 @@ Its `getNodeMap()` is deliberately not just `getNode()`: it returns the node whe
 
 The pure-Java graph state already models shared root identity, topology version, change tick, and the 10-tick eligibility boundary. The host still must invoke invalidation at the correct cable lifecycle points.
 
+### NeoForge 26.3 world lookup prototype
+
+`NeoForgeLegacyPowerNeighborAccess` is the first Minecraft-facing adapter. It holds a `ServerLevel`, immutable origin `BlockPos`, and the pure-Java `LegacyPowerNeighborCache`. It maps the six physical legacy directions to Minecraft `Direction`, detects chunk-border crossings using block coordinates, and obtains the target chunk only through `ServerLevel.getChunkSource().getChunkNow(chunkX, chunkZ)`. A null result becomes `UNLOADED`; a present `LevelChunk` is queried with `LevelChunk.getBlockEntity(targetPos)`, yielding loaded-empty or the exact `BlockEntity` object. It never calls a chunk-loading `getChunk(...)` method or `Level.getBlockEntity(...)` for this lookup.
+
+The adapter also supplies `BlockEntity.isRemoved()` and exact `getBlockPos()` matching to the legacy cache. It preserves the legacy coordinate-mismatch behavior (return null-equivalent without evicting the cached object). This is a compile-time host adapter prototype, not yet validated in a running dedicated server or GameTest. Callers must invoke it on the logical server thread, and the eventual cable block entity must connect its lifecycle callbacks to `clearEmptyMarkers()` / `clearAll()`.
+
 ### World and neighbor access
 
 The original graph walker asks the pipe for the tile on a connected side. It does not imply that a missing or unloaded neighbor is an air block.
