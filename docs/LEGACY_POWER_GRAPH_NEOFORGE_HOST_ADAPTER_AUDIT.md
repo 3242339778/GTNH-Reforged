@@ -107,31 +107,30 @@ A generic NeoForge energy capability is not a drop-in replacement for these cons
 
 ## NeoForge 26.3 world-query adapter
 
-The project is pinned to NeoForge **26.3.0.113**. The current adapter implementation uses the 26.3 API surface documented by the 26.3.0.114 Javadocs as a preliminary signature reference; the user's local Gradle compile/test run is the required verification against the exact pinned dependency.
+The project is pinned to NeoForge **26.3.0.113**. The active adapter in the current source tree is:
 
-Implemented host class: `NeoForgePowerNeighborAccess` in the `legacy.power.neoforge` package.
+`com.gtnh.reforged.legacy.power.NeoForgeLegacyPowerNeighborAccess`
 
 Its lookup sequence is:
 
-1. Convert one of the six `LegacyPowerDirection` values to the matching Minecraft `Direction`. `UNKNOWN` is rejected.
+1. Convert one of the six `LegacyPowerDirection` values to Minecraft `Direction`; reject `UNKNOWN`.
 2. Compute the adjacent immutable `BlockPos` and detect whether its X/Z chunk coordinates differ from the origin.
-3. Consult `LegacyPowerNeighborCache`. A cross-chunk lookup clears that direction before any loaded-state check. A cached removed `BlockEntity` is discarded; a cached object whose position does not match returns the legacy null result without eviction.
-4. For cross-chunk positions only, call `ServerLevel.isLoaded(target)`. If false, return `UNLOADED` and do not call `getBlockEntity`.
-5. Otherwise call `ServerLevel.getBlockEntity(target)`, cache the loaded-empty or exact block-entity result, and return it.
+3. Consult `LegacyPowerNeighborCache`. Cross-chunk lookup invalidates that direction's cache entry first. A cached removed BlockEntity is discarded; a cached object whose position mismatches returns the legacy null-equivalent result without eviction.
+4. On a cache miss, call `ServerLevel.getChunkSource().getChunkNow(chunkX, chunkZ)`. A null result is `UNLOADED`; it is not cached as empty and does not trigger chunk loading.
+5. For a loaded `LevelChunk`, call `LevelChunk.getBlockEntity(target)`, then cache and return either the exact BlockEntity object or a loaded-empty result.
 
-This deliberately avoids deprecated `LevelReader.hasChunk` / `hasChunkAt` and does not use a chunk retrieval API that could load or generate a chunk. `getBlockEntity` is only called for a cross-chunk target after `isLoaded` has returned true; same-chunk access follows the legacy direct lookup path. The adapter is explicitly server-side (`ServerLevel`) and its caller must invoke it on the logical server thread. It does not itself mutate graph state.
+This adapter uses the non-loading chunk lookup path and is explicitly server-side. Call it on the logical server thread. It does not itself mutate graph state.
 
-This is a narrow adjacent-block-entity adapter, not yet a complete implementation of `LegacyPowerTopologyAccess`: cable classification, connection bits, node bindings, map membership, energy-source detection, and graph clearing still belong to the future GT cable host.
+**Important package-boundary finding:** this class currently resides in the base `legacy.power` package even though it imports Minecraft 26.3 classes. It is a Layer 3 Minecraft Bridge class and should move to a bridge namespace. Also, `LegacyPowerCableHostState.createNeighborAccess(ServerLevel, BlockPos)` currently constructs it, which creates a core-to-bridge dependency; remove that factory from the pure-Java state bundle when performing the boundary refactor.
 
-Pure-Java result contract is implemented as `LegacyPowerNeighborLookup` (five focused tests; both the focused test and complete `legacy.power.*Test` suite passed locally on 2026-11-23). The separate `LegacyPowerConnectionResult` contract models the `connect(side)` tri-state and preserves the existing connection bit on `UNLOADED`; its focused test and the complete `legacy.power.*Test` suite also passed locally:
+A second implementation also exists at `com.gtnh.reforged.legacy.power.neoforge.NeoForgePowerNeighborAccess`. It uses `ServerLevel.isLoaded(target)` and `ServerLevel.getBlockEntity(target)`, which is not the same implementation as the active root-package adapter. The host-state factory constructs `NeoForgeLegacyPowerNeighborAccess`, not the subpackage class. Do not maintain two competing adapters without an explicit reason; inspect its source/test references and consolidate them after verifying the pinned 26.3.0.113 API and no-force-load behavior.
 
-- `UNLOADED`: no loaded chunk handle; never infer air or a missing endpoint from this alone.
-- `LOADED_WITHOUT_BLOCK_ENTITY`: target chunk is loaded and the target position has no block entity.
-- `LOADED_WITH_BLOCK_ENTITY`: target chunk is loaded and a block entity exists; preserve that object's identity.
+The current adapter is a narrow adjacent-BlockEntity lookup, not a complete implementation of `LegacyPowerTopologyAccess`: cable classification, connection bits, node bindings, map membership, energy-source detection, and graph clearing still belong to the future GT cable host.
 
-Callers then deliberately map the result according to their upstream contract: graph walking maps both non-object outcomes to null as the old `getTileEntityAtSide` path did; connection validation maps unloaded to the legacy -1/preserve-existing-connection result; IC2 sink discovery passes null to its acceptance callback for an unloaded cross-chunk target.
-
-Reference API pages: [Level](https://aldak0.ru/javadoc/26.3.x/net/minecraft/world/level/Level.html), [LevelReader](https://aldak0.ru/javadoc/26.3.x/net/minecraft/world/level/LevelReader.html), [ServerLevel](https://aldak0.ru/javadoc/26.3.x/net/minecraft/server/level/ServerLevel.html), and [BlockEntity](https://aldak0.ru/javadoc/26.3.x/net/minecraft/world/level/block/entity/BlockEntity.html).
+Pure-Java result contracts:
+- `LegacyPowerNeighborLookup` retains loaded-with-BlockEntity, loaded-empty, and unloaded states while keeping the tile handle opaque.
+- `LegacyPowerConnectionResult` models the legacy positive / zero / -1 connection result and preserves the existing connection bit on `UNLOADED`.
+- `LegacyPowerNeighborCache` models the six per-direction cache slots, unknown/known-empty/cached-object states, cross-chunk invalidation, invalid cached-object retry, coordinate-mismatch null results without eviction, and the two upstream cache-clear operations.
 
 ## 26.3 registration and GameTest integration audit
 
@@ -182,7 +181,7 @@ Primary 26.3.x source references:
 2. The current repository does not yet contain a ported `BaseMetaPipeEntity`, `MetaPipeEntity`, or concrete GT cable block entity. Therefore a concrete adapter cannot be honestly implemented against real host objects yet.
 3. The future ported cable block entity should own `LegacyPowerGraphNode` and `LegacyPowerPath` references directly. Do not attempt to put the old 1.7.10 `Node` class and the new pure-Java node into the same typed field or mix the two Minecraft class universes.
 4. Preserve stable object identity for cable handles, node objects, path objects, map roots, and consumer adapters for the lifetime of a graph.
-5. World access must be server-thread-only for graph mutation. `NeoForgePowerNeighborAccess` documents this caller contract; it does not schedule work or silently move calls between threads. Any asynchronous chunk/world API must be marshalled to the logical server thread before touching this graph.
+5. World access must be server-thread-only for graph mutation. `NeoForgeLegacyPowerNeighborAccess` documents this caller contract; it does not schedule work or silently move calls between threads. Any asynchronous chunk/world API must be marshalled to the logical server thread before touching this graph.
 6. The graph core is not a replacement for NeoForge's energy capability. NeoForge capability exposure/transfer belongs at the consumer/source boundary; GTNH's graph remains responsible for its legacy routing, voltage loss, amperage limits, locks, overload, and partial-retry semantics.
 7. Save/load behavior needs a separate decision. The original graph is runtime topology state and should be rebuilt from loaded world state rather than blindly serializing stale object references.
 
@@ -204,7 +203,8 @@ Primary 26.3.x source references:
 - `LegacyPowerNeighborLookup`: implemented with five focused unit tests; `LegacyPowerNeighborLookupTest` and the complete `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
 - `LegacyPowerNeighborCache`: implemented as a pure-Java six-direction cache model with eleven focused tests; the final focused suite and the full `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
 - `LegacyPowerConnectionResult`: implemented to preserve the legacy positive / zero / -1 connection result semantics; `LegacyPowerConnectionResultTest` and the complete `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
-- `NeoForgePowerNeighborAccess`: implemented against the 26.3 `ServerLevel` / `BlockEntity` API surface; compile against the project's exact NeoForge 26.3.0.113 dependency is pending local verification.
+- `NeoForgeLegacyPowerNeighborAccess` (base `legacy.power` package): current active adapter uses `getChunkSource().getChunkNow(...)` and `LevelChunk.getBlockEntity(...)`; local `compileJava` success against the project's pinned NeoForge 26.3.0.113 was reported on 2026-11-23. It still needs relocation into a bridge package.
+- `legacy.power.neoforge.NeoForgePowerNeighborAccess`: a second implementation using `isLoaded/getBlockEntity` remains in the tree; consolidate after checking references and tests.
 - Concrete NeoForge GT cable/block-entity host: not implemented. The current main mod entry point registers only items.
 - Block and BlockEntityType registration API: audited against the NeoForge 26.3.x DeferredRegister source; project integration pending.
 - GameTest registration: audited against 26.3.x `RegisterGameTestsEvent`; exact `GameTestInstance` construction must be verified against the pinned 26.3.0.113 local dependency before implementation.
