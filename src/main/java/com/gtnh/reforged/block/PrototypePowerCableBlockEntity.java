@@ -58,17 +58,23 @@ public final class PrototypePowerCableBlockEntity extends BlockEntity {
 
     @Override
     public void setRemoved() {
+        LegacyPowerCableHostState.SetRemovedContext context = hostState.onSetRemoved();
         hostState.onInvalidate();
         super.setRemoved();
-        logLifecycle("setRemoved");
+        logLifecycle("setRemoved", context.name());
     }
 
     /** Temporary prototype diagnostic; remove or lower to debug after lifecycle validation. */
     private void logLifecycle(String callback) {
+        logLifecycle(callback, "n/a");
+    }
+
+    private void logLifecycle(String callback, String context) {
         String side = level == null ? "detached" : level instanceof ServerLevel ? "server" : "client";
         GTNHReforged.LOGGER.info(
-            "Prototype power cable lifecycle: callback={}, side={}, pos={}, hostState@{}",
+            "Prototype power cable lifecycle: callback={}, context={}, side={}, pos={}, hostState@{}",
             callback,
+            context,
             side,
             getBlockPos(),
             Integer.toHexString(System.identityHashCode(hostState)));
