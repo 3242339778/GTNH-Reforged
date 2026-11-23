@@ -327,4 +327,12 @@ The user verified the actual server-side unload sequence at BlockPos (461, 65, 4
 
 The client observed the same callback sequence independently. This confirms the NeoForge 26.3.0.113 callback order and the chunk-unload classifier. It does not runtime-test graph detachment because the prototype does not yet build a live graph; the new pure-Java host-state test covers the graph-clear operation.
 
-The local compile and focused/full unit-test rerun for the lifecycle mapping change are pending user verification.
+### Local verification (reported 2026-11-23)
+
+After pulling the lifecycle mapping commits, the user reported:
+
+- `./gradlew test --tests "com.gtnh.reforged.legacy.power.LegacyPowerCableHostStateTest" --rerun` — `BUILD SUCCESSFUL`.
+- `./gradlew test --tests "com.gtnh.reforged.legacy.power.*Test" --rerun` — `BUILD SUCCESSFUL`.
+- `./gradlew compileJava` — `BUILD SUCCESSFUL` (Gradle reported both actionable tasks `UP-TO-DATE`; this confirms the current compile outputs are valid but did not force a fresh Java compilation).
+
+The lifecycle test task was rerun successfully, including the new test that verifies chunk-unload graph cleanup and negative-cache-marker cleanup. A forced compile (`compileJava --rerun`) remains optional if a non-incremental compile check is desired.
