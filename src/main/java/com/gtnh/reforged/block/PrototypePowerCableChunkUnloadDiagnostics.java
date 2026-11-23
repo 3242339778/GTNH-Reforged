@@ -7,7 +7,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.level.ChunkEvent;
 
 /**
@@ -18,18 +17,17 @@ import net.neoforged.neoforge.event.level.ChunkEvent;
  * entities are still available, allowing it to be compared with the
  * BlockEntity lifecycle callbacks.</p>
  */
-@EventBusSubscriber(modid = GTNHReforged.MOD_ID, bus = EventBusSubscriber.Bus.GAME)
 public final class PrototypePowerCableChunkUnloadDiagnostics {
 
     private PrototypePowerCableChunkUnloadDiagnostics() {
     }
 
     @SubscribeEvent
-    public static void onChunkUnload(ChunkEvent.Unload event) {
+    public void onChunkUnload(ChunkEvent.Unload event) {
         LevelChunk chunk = event.getChunk();
         String side = chunk.getLevel().isClientSide() ? "client" : "server";
-        int chunkX = chunk.getPos().x;
-        int chunkZ = chunk.getPos().z;
+        int chunkX = chunk.getPos().x();
+        int chunkZ = chunk.getPos().z();
         int cableCount = 0;
 
         for (BlockPos pos : chunk.getBlockEntitiesPos()) {
