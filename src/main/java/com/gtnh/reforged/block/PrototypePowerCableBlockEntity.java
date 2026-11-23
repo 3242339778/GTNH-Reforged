@@ -2,6 +2,7 @@ package com.gtnh.reforged.block;
 
 import com.gtnh.reforged.GTNHReforged;
 import com.gtnh.reforged.legacy.power.LegacyPowerCableHostState;
+import com.gtnh.reforged.legacy.power.LegacyPowerConnectionMaskChange;
 import com.gtnh.reforged.legacy.power.LegacyPowerDirection;
 import com.gtnh.reforged.legacy.power.LegacyPowerNeighborLookup;
 import com.gtnh.reforged.legacy.power.LegacyPowerRemovalDecision;
@@ -9,6 +10,7 @@ import com.gtnh.reforged.legacy.power.bridge.neoforge.NeoForgeLegacyPowerNeighbo
 import com.gtnh.reforged.registry.ModBlocks;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -44,6 +46,60 @@ public final class PrototypePowerCableBlockEntity extends BlockEntity {
             serverLevel,
             getBlockPos(),
             hostState.neighborCache());
+    }
+
+
+    /**
+     * Publishes a newly negotiated connection mask and invalidates the graph
+     * roots of adjacent loaded prototype cables. This method is server-thread
+     * only and deliberately uses getChunkNow rather than a chunk-loading API.
+     *
+     * <p>Client synchronization and block-update notification are separate
+     * integration steps; this method only performs graph-state changes.</p>
+     */
+    public LegacyPowerConnectionMaskChange updateConnectionFlags(int newConnectionFlags) {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            throw new IllegalStateException("Connection masks are server-side only");
+        }
+
+        long serverTick = serverLevel.getGameTime();
+        LegacyPowerConnectionMaskChange change = hostState.cableState()
+            .updateConnectionFlags(
+                newConnectionFlags,
+                serverTick,
+                side -> 1 << side.ordinalIndex());
+        if (!change.changed()) {
+            return change;
+        }
+
+        for (LegacyPowerDirection side : LegacyPowerDirection.orderedValues()) {
+            BlockPos neighborPos = getBlockPos().relative(toMinecraftDirection(side));
+            LevelChunk chunk = serverLevel.getChunkSource().getChunkNow(
+                neighborPos.getX() >> 4,
+                neighborPos.getZ() >> 4);
+            if (chunk == null) {
+                continue;
+            }
+
+            BlockEntity neighbor = chunk.getBlockEntity(neighborPos);
+            if (neighbor instanceof PrototypePowerCableBlockEntity cable) {
+                cable.hostState.invalidateGraphForTopologyChange(serverTick);
+            }
+        }
+        return change;
+    }
+
+    private static Direction toMinecraftDirection(LegacyPowerDirection side) {
+        return switch (side) {
+            case DOWN -> Direction.DOWN;
+            case UP -> Direction.UP;
+            case NORTH -> Direction.NORTH;
+            case SOUTH -> Direction.SOUTH;
+            case WEST -> Direction.WEST;
+            case EAST -> Direction.EAST;
+            case UNKNOWN -> throw new IllegalArgumentException(
+                "UNKNOWN is not a physical neighbor direction");
+        };
     }
 
     /**
