@@ -65,7 +65,7 @@ public final class PrototypePowerCableBlockEntity extends BlockEntity {
 
     /** Temporary prototype diagnostic; remove or lower to debug after lifecycle validation. */
     private void logLifecycle(String callback) {
-        String side = level == null ? "detached" : level.isClientSide ? "client" : "server";
+        String side = level == null ? "detached" : level instanceof ServerLevel ? "server" : "client";
         GTNHReforged.LOGGER.info(
             "Prototype power cable lifecycle: callback={}, side={}, pos={}, hostState@{}",
             callback,
