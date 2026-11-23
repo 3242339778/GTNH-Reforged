@@ -73,7 +73,26 @@ public final class LegacyPowerCableHostState {
         return SetRemovedContext.WITHOUT_CHUNK_UNLOAD;
     }
 
-    /** Forward from the block's neighbor-update callback. */
+    /**
+     * Mirrors BaseMetaPipeEntity.onNeighborBlockChange after the host has
+     * scanned connected sides. Cache markers are cleared on every callback;
+     * endpoint occupancy only invalidates a live direct-node graph when it
+     * actually changes.
+     *
+     * @return true when the occupied-side mask changed and the shared graph
+     *         root was invalidated
+     */
+    public boolean onAdjacentBlockChange(int observedOccupiedSides, long serverTick) {
+        neighborCache.clearEmptyMarkers();
+        if (!cableState.hasDirectNode()
+            || !cableState.updateOccupiedConnectedSides(observedOccupiedSides)) {
+            return false;
+        }
+        cableState.invalidateGraphForTopologyChange(serverTick);
+        return true;
+    }
+
+    /** Cache-only callback for client-side or not-yet-scanned neighbor updates. */
     public void onAdjacentBlockChange() {
         neighborCache.clearEmptyMarkers();
     }
