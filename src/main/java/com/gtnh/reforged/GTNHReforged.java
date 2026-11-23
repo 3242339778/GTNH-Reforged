@@ -13,6 +13,8 @@ import com.gtnh.reforged.registry.ModBlocks;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.common.NeoForge;
+import com.gtnh.reforged.block.PrototypePowerCableChunkUnloadDiagnostics;
 
 /** Main entry point for GTNH: Reforged. */
 @Mod(GTNHReforged.MOD_ID)
@@ -21,6 +23,7 @@ public final class GTNHReforged {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public GTNHReforged(IEventBus modEventBus, ModContainer modContainer) {
+        NeoForge.EVENT_BUS.register(new PrototypePowerCableChunkUnloadDiagnostics());
         ModItems.ITEMS.register(modEventBus);
         ModBlocks.BLOCKS.register(modEventBus);
         ModBlocks.BLOCK_ENTITY_TYPES.register(modEventBus);
