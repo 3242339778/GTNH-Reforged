@@ -336,3 +336,21 @@ After pulling the lifecycle mapping commits, the user reported:
 - `./gradlew compileJava` — `BUILD SUCCESSFUL` (Gradle reported both actionable tasks `UP-TO-DATE`; this confirms the current compile outputs are valid but did not force a fresh Java compilation).
 
 The lifecycle test task was rerun successfully, including the new test that verifies chunk-unload graph cleanup and negative-cache-marker cleanup. A forced compile (`compileJava --rerun`) remains optional if a non-incremental compile check is desired.
+
+
+## Neighbor-change and endpoint-occupancy mapping (2026-11-23)
+
+Upstream GT5-Unofficial 5.09.54.275 `BaseMetaPipeEntity.onNeighborBlockChange(x,y,z)` performs three distinct operations in order:
+
+1. `clearNullMarkersFromTileEntityBuffer()` unconditionally, because a placed tile entity may not emit the expected neighbor notification.
+2. If host data is accessible, a `MetaPipeEntity` receives `setCheckConnections()`; this requests connection validation but defers it when the world/tile is not ready. It must not be replaced by an eager graph rebuild inside the neighbor callback.
+3. For a server-side `MTECable` with a direct `node`, scan only directions whose connection bit is set. A side is occupied only when `getTileEntityAtSide(side) != null`. If the resulting six-bit mask differs from the graph-build snapshot, update the mask and call `node.invalidateNodeMap()`. This detects endpoints appearing/disappearing at an already-open connection even when connection bits themselves do not change.
+
+The prototype now maps the cache-reset and endpoint-occupancy branch:
+- `PrototypePowerCableBlock.neighborChanged(...)` forwards the notification to its BlockEntity.
+- Client-side handling clears only negative neighbor-cache markers.
+- Server-side handling scans connected directions through `NeoForgeLegacyPowerNeighborAccess`; unloaded chunks remain non-occupied and are never force-loaded.
+- `LegacyPowerCableHostState.onAdjacentBlockChange(observedMask, serverTick)` invalidates the shared graph root only when a direct node exists and the occupancy mask actually changed. It does not clear the graph or rebuild it synchronously.
+- The prototype does not yet have GT's full `MetaPipeEntity.setCheckConnections()` policy or reciprocal connection implementation; that remains a separate milestone. The connection mask is currently supplied by the cable state and defaults to zero.
+
+Focused tests cover changed occupancy, unchanged occupancy, no direct node, negative-marker clearing, and preservation of positive neighbor references.
