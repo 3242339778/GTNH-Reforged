@@ -8,9 +8,9 @@
 
 The graph algorithms and state transitions are predominantly Minecraft-independent. They form a usable Legacy Behavior Core candidate and expose narrow Java contracts. The current package layout, however, does not yet enforce the five-layer architecture:
 
-1. `NeoForgeLegacyPowerNeighborAccess` is in the base `legacy.power` package but directly imports 26.3 Minecraft types.
-2. `LegacyPowerCableHostState` is mostly a pure-Java state bundle, but its `createNeighborAccess(ServerLevel, BlockPos)` method imports Minecraft types through fully-qualified signatures and constructs the concrete NeoForge adapter. This creates a core-to-bridge dependency.
-3. A second adapter, `legacy.power.neoforge.NeoForgePowerNeighborAccess`, also exists. It uses a different lookup implementation (`ServerLevel.isLoaded` / `getBlockEntity`) from the root-package adapter (`getChunkSource().getChunkNow` / `LevelChunk.getBlockEntity`). The host-state factory currently constructs the root-package class. These two implementations must not silently diverge.
+1. The active `NeoForgeLegacyPowerNeighborAccess` has been moved to `legacy.power.bridge.neoforge`; it is the sole retained concrete world adapter.
+2. `LegacyPowerCableHostState` is now a pure-Java state bundle; its former `createNeighborAccess(ServerLevel, BlockPos)` factory has been removed, eliminating the core-to-bridge dependency.
+3. The duplicate `legacy.power.neoforge.NeoForgePowerNeighborAccess` implementation has been removed; the retained adapter uses `getChunkSource().getChunkNow` / `LevelChunk.getBlockEntity`.
 4. No actual GT cable BlockEntity, block registration, BlockEntityType registration, or GameTest integration is present in this subsystem yet.
 
 **Conclusion:** do not rewrite the graph algorithms. First correct the package/dependency boundaries and establish one authoritative world adapter. Then continue with a real registered cable host.
@@ -66,7 +66,7 @@ The Layer 1 interfaces are ports used by these algorithms. The core may depend o
 
 | Current type | Role and finding |
 |---|---|
-| `NeoForgeLegacyPowerNeighborAccess` (`legacy.power` package) | Concrete 26.3 world/BlockEntity lookup adapter. It imports `BlockPos`, `Direction`, `ServerLevel`, `BlockEntity`, and `LevelChunk`; it belongs in the bridge namespace, not beside the pure core. |
+| `NeoForgeLegacyPowerNeighborAccess` (`legacy.power.bridge.neoforge` package) | Concrete 26.3 world/BlockEntity lookup adapter. It imports `BlockPos`, `Direction`, `ServerLevel`, `BlockEntity`, and `LevelChunk`; it belongs in the bridge namespace, not beside the pure core. |
 | `LegacyPowerCableHostState.createNeighborAccess(...)` | Bridge construction currently embedded in a Java-only state bundle. Move this factory out; keep the bundle independent of Minecraft types. |
 | `LegacyPowerNeighborLookup` | Bridge result contract with opaque object identity; logically Layer 1, consumed at this boundary. |
 | `LegacyPowerNeighborCache` | Pure-Java cache behavior model used by the bridge and owned by host state; keep its implementation Minecraft-free. |
@@ -96,7 +96,7 @@ The power graph is already being extracted into normal Java source and should st
 
 ### 3.1 Minecraft imports in the base package
 
-`NeoForgeLegacyPowerNeighborAccess.java` currently lives in `com.gtnh.reforged.legacy.power` despite importing Minecraft 26.3 classes. Move it to a bridge package such as:
+`NeoForgeLegacyPowerNeighborAccess.java` currently lives in `com.gtnh.reforged.legacy.power` despite importing Minecraft 26.3 classes. It now resides in:
 
 ```
 com.gtnh.reforged.legacy.power.bridge.neoforge
@@ -108,7 +108,7 @@ Keep the pure contracts and graph classes in the core namespace. The move should
 
 `LegacyPowerCableHostState` is intended to be a Minecraft-independent owner of `LegacyPowerCableState` and `LegacyPowerNeighborCache`. Its current `createNeighborAccess(ServerLevel, BlockPos)` method breaks that boundary.
 
-Remove the factory from the state bundle. The future BlockEntity (Layer 4), or a dedicated Layer 3 factory, should construct the bridge using the bundle's `neighborCache()`. This preserves the stable cache identity without making the core know about `ServerLevel`.
+The factory has been removed from the state bundle. The future BlockEntity (Layer 4), or a dedicated Layer 3 factory, should construct the bridge using the bundle's `neighborCache()`. This preserves stable cache identity without making the core know about `ServerLevel`.
 
 ### 3.3 Two world adapters
 
@@ -151,16 +151,17 @@ More concretely:
 
 ## 5. Recommended refactor sequence
 
-1. Move the active `NeoForgeLegacyPowerNeighborAccess` into a bridge package without changing its behavior.
-2. Remove `createNeighborAccess(ServerLevel, BlockPos)` from `LegacyPowerCableHostState`; construct the adapter from the future host/bridge using the existing cache accessor.
-3. Audit references to `legacy.power.neoforge.NeoForgePowerNeighborAccess`; compare its semantics and tests with the active adapter, then either migrate its useful behavior or remove the duplicate.
-4. Add an automated boundary check (at minimum, ensure the core package's pure classes do not import `net.minecraft`, `net.neoforged`, or `net.minecraftforge`).
+1. Completed: move the active `NeoForgeLegacyPowerNeighborAccess` into `legacy.power.bridge.neoforge` without changing its lookup behavior.
+2. Completed: remove `createNeighborAccess(ServerLevel, BlockPos)` from `LegacyPowerCableHostState`.
+3. Completed: remove the duplicate `legacy.power.neoforge.NeoForgePowerNeighborAccess` implementation.
+4. Next: add an automated boundary check ensuring core classes do not import `net.minecraft`, `net.neoforged`, or `net.minecraftforge`.
 5. Continue with the actual cable Block + BlockEntity registration in Layer 4.
 6. Add GameTests only after the real host exists; keep pure-Java unit tests as the fast behavior suite.
 
 ## 6. Verification status
 
 - Source classification: completed from the current branch source files.
+- Layer boundary refactor: bridge adapter moved, host-state factory removed, and duplicate adapter deleted in commits `5c03ad5`, `fd9fe13`, `170940b`, and `e7529dc`; local compile/test re-verification is pending.
 - Pure Java graph unit tests: prior local user reports show the `legacy.power.*Test` suite passed; this review did not rerun local Gradle tasks.
 - Minecraft bridge compilation: the current project conversation records a successful local `compileJava` for the root-package adapter on 2026-11-23. Re-run after any package move.
 - Registered cable host and GameTests: not implemented / not verified in game.
