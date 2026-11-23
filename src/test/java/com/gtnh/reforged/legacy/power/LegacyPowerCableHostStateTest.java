@@ -63,6 +63,23 @@ class LegacyPowerCableHostStateTest {
     }
 
     @Test
+    void chunkUnloadImmediatelyClearsGraphAndNegativeCacheMarkers() {
+        LegacyPowerCableHostState host = new LegacyPowerCableHostState();
+        LegacyPowerGraphNode root = new LegacyPowerGraphNode(1, new Object(), host.cableState());
+        host.cableState().setNode(root);
+        host.neighborCache().remember(
+            LegacyPowerDirection.NORTH,
+            LegacyPowerNeighborLookup.loadedWithoutBlockEntity());
+
+        host.onChunkUnload();
+
+        assertTrue(root.isInvalid());
+        assertNull(host.cableState().getNode());
+        assertEquals(LegacyPowerNeighborCache.CacheStatus.MISS,
+            host.neighborCache().cachedResult(LegacyPowerDirection.NORTH, false, tile -> false).status());
+    }
+
+    @Test
     void chunkUnloadThenSetRemovedIsClassifiedAsChunkLifecycle() {
         LegacyPowerCableHostState host = new LegacyPowerCableHostState();
 
