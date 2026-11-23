@@ -115,7 +115,7 @@ This deliberately avoids deprecated `LevelReader.hasChunk` / `hasChunkAt` and do
 
 This is a narrow adjacent-block-entity adapter, not yet a complete implementation of `LegacyPowerTopologyAccess`: cable classification, connection bits, node bindings, map membership, energy-source detection, and graph clearing still belong to the future GT cable host.
 
-Pure-Java result contract now implemented as `LegacyPowerNeighborLookup` (five focused tests; both the focused test and complete `legacy.power.*Test` suite passed locally on 2026-11-23). The separate `LegacyPowerConnectionResult` contract now models the `connect(side)` tri-state and preserves the existing connection bit on `UNLOADED`; its new focused tests are awaiting local verification:
+Pure-Java result contract is implemented as `LegacyPowerNeighborLookup` (five focused tests; both the focused test and complete `legacy.power.*Test` suite passed locally on 2026-11-23). The separate `LegacyPowerConnectionResult` contract models the `connect(side)` tri-state and preserves the existing connection bit on `UNLOADED`; its focused test and the complete `legacy.power.*Test` suite also passed locally:
 
 - `UNLOADED`: no loaded chunk handle; never infer air or a missing endpoint from this alone.
 - `LOADED_WITHOUT_BLOCK_ENTITY`: target chunk is loaded and the target position has no block entity.
@@ -123,7 +123,7 @@ Pure-Java result contract now implemented as `LegacyPowerNeighborLookup` (five f
 
 Callers then deliberately map the result according to their upstream contract: graph walking maps both non-object outcomes to null as the old `getTileEntityAtSide` path did; connection validation maps unloaded to the legacy -1/preserve-existing-connection result; IC2 sink discovery passes null to its acceptance callback for an unloaded cross-chunk target.
 
-Reference API pages: [Level](https://aldak0.ru/javadoc/26.3.x/net/minecraft/world/level/Level.html), [LevelReader](https://aldak0.ru/javadoc/26.3.x/net/minecraft/world/level/LevelReader.html), [ServerChunkCache](https://aldak0.ru/javadoc/26.3.x/net/minecraft/server/level/ServerChunkCache.html).
+Reference API pages: [Level](https://aldak0.ru/javadoc/26.3.x/net/minecraft/world/level/Level.html), [LevelReader](https://aldak0.ru/javadoc/26.3.x/net/minecraft/world/level/LevelReader.html), [ServerLevel](https://aldak0.ru/javadoc/26.3.x/net/minecraft/server/level/ServerLevel.html), and [BlockEntity](https://aldak0.ru/javadoc/26.3.x/net/minecraft/world/level/block/entity/BlockEntity.html).
 
 ## Mapping to the current pure-Java contracts
 
@@ -156,7 +156,7 @@ Reference API pages: [Level](https://aldak0.ru/javadoc/26.3.x/net/minecraft/worl
 ## Recommended implementation order
 
 1. Integrate `LegacyPowerCableState` into the ported cable/base-tile state owner: node/path bindings, connection bits, occupied-side snapshot, and invalidation hooks.
-2. Implement a read-only world adapter with explicit loaded-neighbor status, legacy graph-walk null mapping, six-side neighbor-cache invalidation, connection-check tri-state semantics, pipe classification, and energy-source detection.
+2. Implement a read-only world adapter with explicit loaded-neighbor status, legacy graph-walk null mapping, six-side neighbor-cache invalidation, connection-check tri-state semantics, pipe classification, and energy-source detection. The narrow `NeoForgePowerNeighborAccess` BlockEntity lookup portion is now implemented; the remaining topology operations still await the ported GT cable host.
 3. Implement path binding and lock reload against the new cable objects.
 4. Implement power-specific node factories and consumer discovery one family at a time.
 5. Wire the source transfer coordinator to the logical server tick and cable source flag.
@@ -169,8 +169,9 @@ Reference API pages: [Level](https://aldak0.ru/javadoc/26.3.x/net/minecraft/worl
 - Pure-Java graph core: locally verified by the development machine's complete `legacy.power.*Test` Gradle test task.
 - `LegacyPowerCableState`: implemented; the focused `LegacyPowerCableStateTest` and complete `legacy.power.*Test` tasks both reported `BUILD SUCCESSFUL` on the development machine.
 - `LegacyPowerNeighborLookup`: implemented with five focused unit tests; `LegacyPowerNeighborLookupTest` and the complete `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
-- `LegacyPowerNeighborCache`: implemented as a pure-Java six-direction cache model with eleven focused tests; the initial ten-test suite and the full `legacy.power.*Test` suite passed locally on 2026-11-23. A follow-up test for coordinate-mismatch retention was added afterward and still requires local verification.
+- `LegacyPowerNeighborCache`: implemented as a pure-Java six-direction cache model with eleven focused tests; the final focused suite and the full `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
 - `LegacyPowerConnectionResult`: implemented to preserve the legacy positive / zero / -1 connection result semantics; `LegacyPowerConnectionResultTest` and the complete `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
-- Concrete NeoForge cable/block-entity host: not implemented.
+- `NeoForgePowerNeighborAccess`: implemented against the 26.3 `ServerLevel` / `BlockEntity` API surface; compile against the project's exact NeoForge 26.3.0.113 dependency is pending local verification.
+- Concrete NeoForge GT cable/block-entity host: not implemented.
 - Concrete GT consumer-family adapters: not implemented.
 - In-game/GameTest verification: not implemented.
