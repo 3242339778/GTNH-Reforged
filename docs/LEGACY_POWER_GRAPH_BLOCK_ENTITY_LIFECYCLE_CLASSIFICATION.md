@@ -8,9 +8,9 @@
 
 The prototype BlockEntity emitted the following callback sequences in a real client world.
 
-### Chunk unload and reload
+### Earlier chunk unload and reload observation
 
-For the same server-side host instance:
+For the same server-side host instance, an earlier test recorded:
 
 ```text
 onChunkUnloaded
@@ -19,70 +19,90 @@ setRemoved
 
 The callback lines shared the same `hostState@` identity. A later `onLoad` at the same position had a new identity, which is expected because the BlockEntity and its runtime-only graph/cache state were reconstructed.
 
-The client also emitted `onChunkUnloaded` followed by `setRemoved` during client chunk unload.
+The client also emitted `onChunkUnloaded` followed by `setRemoved` during one observed client chunk unload.
 
-### Player breaking the prototype block
+### Latest user-provided runtime observation
 
-The observed break sequence ended with:
+The latest log contained two removal/reload sequences:
 
 ```text
-client: setRemoved
-server: setRemoved
+12:41:21 client setRemoved
+12:41:21 server setRemoved
+12:41:22 client onLoad
+12:41:22 server onLoad
+12:41:47 client setRemoved
+12:41:47 server setRemoved
 ```
 
-No `onChunkUnloaded` was observed immediately before these two callbacks. The client and server had distinct BlockEntity/host-state instances.
+All four `setRemoved` callbacks were previously classified as `WITHOUT_CHUNK_UNLOAD`. No `onChunkUnloaded` callback appeared in that captured interval. The first removal was followed by new BlockEntity instances at the same position; the log alone did not establish why.
 
-## Conclusion
+These observations demonstrate why absence of a preceding chunk-unload callback is not sufficient to infer player destruction.
 
-`BlockEntity.setRemoved()` is not by itself equivalent to the permanent-removal meaning of the old GTNH 1.7.10 `invalidate()` callback. The observed chunk-unload path invokes both `onChunkUnloaded()` and `setRemoved()`, while the observed player-break path invokes `setRemoved()` without a preceding `onChunkUnloaded()`.
+## 26.3 source-level lifecycle findings
 
-This is evidence for distinguishing callback context, not proof that every possible removal path has been covered. In particular, replacement by another block, block-entity type changes, and unusual chunk teardown paths still require verification.
+The 26.3 Forge patch for `LevelChunk.clearAllBlockEntities()` explicitly calls `onChunkUnloaded()` on its BlockEntities before calling `setRemoved()` and clearing the map.
 
-## Pure-Java lifecycle classifier
+NeoForge's BlockEntity documentation identifies `preRemoveSideEffects` as a removal hook for side effects such as exporting container contents, but warns that some removal paths can skip it. It is not used as the sole graph-removal signal here.
 
-`LegacyPowerCableHostState` now records whether `onChunkUnload()` has occurred since the most recent `onValidate()`. The next `onSetRemoved()` returns one of:
+The Minecraft 26.x `ChunkAccess`/chunk API exposes chunk-local block-state and BlockEntity lookup. The prototype bridge therefore uses `ServerChunkCache.getChunkNow` to inspect an already-loaded chunk; it does not request or generate a chunk as part of removal classification.
 
-- `AFTER_CHUNK_UNLOAD`: a chunk-unload callback was observed first; the pending marker is consumed.
-- `WITHOUT_CHUNK_UNLOAD`: no chunk-unload callback was observed first.
+## Conservative removal decision model
 
-The classifier does not access Minecraft state and does not clear the graph. It is deliberately only a callback-sequence classifier. The Minecraft-facing host must still inspect the world/block removal context before deciding whether to invoke immediate graph cleanup.
+`LegacyPowerRemovalDecision` is a pure-Java decision model. Its results are:
 
-`PrototypePowerCableBlockEntity.setRemoved()` now records the classification in its temporary lifecycle log. The current implementation still only clears negative neighbor-cache markers; it does not yet clear the graph on a player break. This is intentional until the actual block-replacement condition and all removal paths are verified.
+- `CHUNK_UNLOAD`: the host observed `onChunkUnloaded()` before `setRemoved()`.
+- `BLOCK_REPLACED`: the already-loaded world chunk reports a different block at the host position.
+- `HOST_REPLACED`: the cable block is still present, but the chunk no longer maps that position to this exact BlockEntity instance.
+- `UNKNOWN`: the chunk/world state is unavailable, or the observations do not prove a removal cause.
 
-## Unit-test coverage added
+The order is deliberate: chunk unload takes precedence; missing world information is conservative; a different block is a block replacement; a missing/different BlockEntity under the same cable block is a host-instance replacement. A same-block state-property update is not classified as a block replacement merely because the state properties differ.
 
-`LegacyPowerCableHostStateTest` now covers:
+The Minecraft-facing `PrototypePowerCableBlockEntity` now performs the inspection only on the logical server and only through `getChunkNow`. Client-side callbacks remain diagnostic and do not perform world-based classification.
 
-- chunk unload followed by `setRemoved()` => `AFTER_CHUNK_UNLOAD`;
-- `setRemoved()` without a preceding chunk unload => `WITHOUT_CHUNK_UNLOAD`;
-- a subsequent `onValidate()` resets the pending chunk-unload context;
-- existing negative-cache clearing and positive-cache retention behavior remains covered.
+**No decision currently invokes `clearGraphImmediately()`.** This change adds a tested decision model and runtime diagnostics only. Before wiring graph cleanup, the actual callback ordering and all removal paths must be validated against the pinned 26.3.0.113 runtime.
 
-These are source-level test additions. They are **not yet reported as locally executed**; run the commands below after pulling the commits.
+## Unit-test coverage
 
-## Local verification
+`LegacyPowerRemovalDecisionTest` covers:
+
+- chunk-unload precedence;
+- unavailable chunk/world state => `UNKNOWN`;
+- a different current block => `BLOCK_REPLACED`;
+- the cable block remaining while its exact host instance is no longer registered => `HOST_REPLACED`;
+- the original host still being registered => `UNKNOWN`.
+
+Existing `LegacyPowerCableHostStateTest` continues to cover callback-sequence tracking and neighbor-cache lifecycle behavior.
+
+## Local verification required
+
+After pulling the branch, run:
 
 ```powershell
+.\gradlew.bat test --tests "com.gtnh.reforged.legacy.power.LegacyPowerRemovalDecisionTest" --rerun
 .\gradlew.bat test --tests "com.gtnh.reforged.legacy.power.LegacyPowerCableHostStateTest" --rerun
 .\gradlew.bat test --tests "com.gtnh.reforged.legacy.power.*Test" --rerun
 .\gradlew.bat compileJava
 ```
 
-After launching the client, inspect the lifecycle log. Expected diagnostic context:
+Then launch the client and test:
 
-- chunk unload sequence: `onChunkUnloaded`, then `setRemoved context=AFTER_CHUNK_UNLOAD`;
-- player break sequence: `setRemoved context=WITHOUT_CHUNK_UNLOAD` on the corresponding client/server instances.
+1. player breaking the prototype cable;
+2. replacing it with a different block;
+3. replacing/removing the BlockEntity while retaining the cable block, if a controlled test path is available;
+4. same-block state-property changes, if the prototype gains such a property;
+5. chunk unload and reload.
 
-Do not interpret `WITHOUT_CHUNK_UNLOAD` as definitive proof of player destruction. It means only that no chunk-unload callback was observed on that host instance before `setRemoved()`.
+Expected diagnostic labels on the server are `CHUNK_UNLOAD`, `BLOCK_REPLACED`, `HOST_REPLACED`, or `UNKNOWN`. Do not interpret `UNKNOWN` as permission to clear the graph.
 
-## Next integration gate
+## Integration gate
 
-Before invoking `clearGraphImmediately()` from the real host:
+Before graph cleanup is enabled:
 
-1. Verify the block state currently stored at the BlockEntity position during `setRemoved()` for the pinned 26.3.0.113 artifact.
-2. Confirm whether the current state still represents this exact prototype block or has been replaced.
-3. Verify the same behavior for player break, replacement by another block, block-entity type change, and chunk unload.
-4. Gate all graph mutation to the logical server.
-5. Add tests for the removal decision itself; do not let a callback-name mapping silently decide graph semantics.
+1. Confirm the exact call order in the pinned 26.3.0.113 runtime for each test above.
+2. Confirm that `getChunkNow` and the chunk-local lookups behave as expected during `setRemoved()`.
+3. Confirm that `HOST_REPLACED` cannot be produced by an ordinary same-host lifecycle transition.
+4. Define whether a host-instance replacement should invalidate only its owned graph/path or the whole shared graph root.
+5. Gate all graph mutation to the logical server.
+6. Add runtime tests before enabling destructive cleanup.
 
-Until those checks pass, `setRemoved()` remains a cache lifecycle callback plus diagnostic classification, not a permanent graph-invalidation event.
+Until these checks pass, `setRemoved()` remains a cache lifecycle callback plus conservative diagnostics, not an unconditional permanent graph-invalidation event.
