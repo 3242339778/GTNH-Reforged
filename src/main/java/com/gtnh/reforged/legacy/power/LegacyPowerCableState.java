@@ -55,6 +55,41 @@ public final class LegacyPowerCableState
         this.metaTilePresent = metaTilePresent;
     }
 
+
+    /**
+     * Applies the server-side connection-mask update performed by
+     * BaseMetaPipeEntity.updateConnections().
+     *
+     * <p>The ordering is intentional: invalidate the shared topology first,
+     * invalidate paths for removed sides while the old mask/path snapshot is
+     * still available, then publish the new mask. The bridge is responsible
+     * for invalidating adjacent cable graph roots and issuing world/client
+     * update notifications.</p>
+     */
+    public LegacyPowerConnectionMaskChange updateConnectionFlags(
+        int newConnectionFlags,
+        long serverTick,
+        ToIntFunction<LegacyPowerDirection> legacySideFlag) {
+        if (connectionFlags == newConnectionFlags) {
+            return LegacyPowerConnectionMaskChange.unchanged(connectionFlags);
+        }
+
+        int oldConnectionFlags = connectionFlags;
+        int removedConnections = oldConnectionFlags & ~newConnectionFlags;
+        int addedConnections = newConnectionFlags & ~oldConnectionFlags;
+
+        invalidateGraphForTopologyChange(serverTick);
+        invalidateAffectedPaths(removedConnections, legacySideFlag);
+        connectionFlags = newConnectionFlags;
+
+        return new LegacyPowerConnectionMaskChange(
+            true,
+            oldConnectionFlags,
+            newConnectionFlags,
+            addedConnections,
+            removedConnections);
+    }
+
     public int getNodePathConnections() {
         return nodePathConnections;
     }
