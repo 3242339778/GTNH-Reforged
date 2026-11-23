@@ -83,7 +83,6 @@ public final class LegacyPowerCableHostState {
      *         root was invalidated
      */
     public boolean onAdjacentBlockChange(int observedOccupiedSides, long serverTick) {
-        neighborCache.clearEmptyMarkers();
         if (!cableState.hasDirectNode()
             || !cableState.updateOccupiedConnectedSides(observedOccupiedSides)) {
             return false;
@@ -92,9 +91,18 @@ public final class LegacyPowerCableHostState {
         return true;
     }
 
-    /** Cache-only callback for client-side or not-yet-scanned neighbor updates. */
-    public void onAdjacentBlockChange() {
+    /**
+     * First phase of the legacy neighbor callback. Must run before any
+     * adjacent-side scan so previously cached empty slots do not hide a
+     * newly-placed block entity.
+     */
+    public void prepareAdjacentBlockChange() {
         neighborCache.clearEmptyMarkers();
+    }
+
+    /** Cache-only callback for client-side neighbor updates. */
+    public void onAdjacentBlockChange() {
+        prepareAdjacentBlockChange();
     }
 
     /**
