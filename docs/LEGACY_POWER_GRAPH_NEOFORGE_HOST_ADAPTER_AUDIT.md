@@ -210,3 +210,60 @@ Primary 26.3.x source references:
 - GameTest registration: audited against 26.3.x `RegisterGameTestsEvent`; exact `GameTestInstance` construction must be verified against the pinned 26.3.0.113 local dependency before implementation.
 - Concrete GT consumer-family adapters: not implemented.
 - In-game/GameTest verification: not implemented.
+
+## Cable Block / BlockEntity implementation gate (2026-11-23)
+
+The first registered NeoForge cable host must be a deliberately narrow **runtime shell**, not a premature replacement for the full GT meta-tile system.
+
+### Responsibilities that must remain separate
+
+| Concern | Legacy owner | NeoForge-side destination |
+|---|---|---|
+| Six connection bits and connect/disconnect result semantics | MetaPipeEntity / IConnectable | Cable host connection state + explicit connection policy |
+| Cable material, thickness, voltage, amperage, insulation, shock flag, loss per meter | MTECable | Immutable cable specification/value object (not BlockState properties) |
+| Graph node/path and topology invalidation | BaseMetaPipeEntity, NodePath, graph classes | Existing LegacyPowerCableState / LegacyPowerCableHostState |
+| Six-direction adjacent BlockEntity lookup and cache | BaseTileEntity | Existing NeoForgeLegacyPowerNeighborAccess + host-owned cache |
+| Block registration and BlockEntity construction | Minecraft/Forge host | NeoForge DeferredRegister integration |
+| Rendering, collision shape, item interaction, covers, energy-family adapters | Multiple GT classes | Separate adapters; not silently dropped by the first host skeleton |
+
+The cable's six connection bits are **not** enough to reconstruct the graph. The upstream occupiedConnectedSides scan detects a tile appearing or disappearing at an already-connected side, even when the connection mask does not change. The first BlockEntity must therefore expose a server-side topology-change entry point that can later be called by the neighbor callback after the occupied-side scan is implemented. Do not equate a vanilla neighbor callback with a completed GT checkConnections() implementation.
+
+### Exact connection result contract
+
+The upstream MetaPipeEntity.connect(side) behavior is not boolean:
+
+- UNKNOWN returns 0.
+- Missing base meta tile returns 0.
+- A successful compatible pipe connection sets the side bit and reciprocally attempts the opposite connection, then returns 1.
+- A successful GT6-style open-air connection or accepted machine/energy endpoint sets the side bit and returns 1.
+- If no connection was accepted and the target chunk is not loaded, it returns **-1**.
+- Otherwise it returns 0.
+
+checkConnections() disconnects a side only when connect(side) == 0; a result of -1 preserves the existing bit. The existing LegacyPowerConnectionResult model already captures this tri-state distinction. A new host must use that model rather than converting it to a boolean.
+
+### Cable specification is not a registry identity
+
+MTECable stores thickness, material, loss per meter, amperage, voltage, insulation and shock behavior as per-cable data. Those values must not be collapsed into one universal registered cable block or encoded as six-direction connection flags. A future catalog/definition layer should describe cable variants; the initial registered host can be a test fixture or a clearly named prototype, but it must not pretend to represent all GT cable variants.
+
+### 26.3 lifecycle mapping
+
+For the pinned NeoForge 26.3 line, the current BlockEntity lifecycle surface includes the NeoForge IBlockEntityExtension callbacks onLoad() and onChunkUnloaded(), plus vanilla BlockEntity.setRemoved(). Map the host component callbacks as follows:
+
+- On first attachment/load, call the host state's validation/cache initialization hook once the level is available.
+- On onChunkUnloaded(), forward to LegacyPowerCableHostState.onChunkUnload().
+- On setRemoved(), forward to LegacyPowerCableHostState.onInvalidate() and invalidate the cable's graph state according to the upstream removal path; do not confuse ordinary chunk unload with permanent block removal.
+- On the block's neighbor callback, clear negative cache markers and schedule/perform server-side connection validation at the correct lifecycle point. The upstream code deliberately defers connection checking because neighboring structures may still be loading.
+- If a host is ever moved/repositioned by a non-vanilla mechanism, call onPositionChanged(); normal position-bound BlockEntities do not need a speculative relocation system.
+
+The callback signatures must be compiled against the exact pinned NeoForge 26.3.0.113 artifact before implementation. Javadocs for nearby 26.3.x patch builds are useful discovery aids but are not proof that every signature is identical in .113.
+
+### First implementation boundary
+
+The first code change should register a dedicated prototype cable Block, BlockEntityType, and BlockItem (if an item is needed for placement), and make the BlockEntity own one stable LegacyPowerCableHostState. It should initially implement only lifecycle forwarding and safe server-side neighbor access. It must not yet claim to:
+- perform the complete GT cable connection policy;
+- discover GT, IC2, Galacticraft, AE2 or CoFH consumers;
+- inject or transfer energy;
+- render the legacy cable geometry or covers;
+- persist a finished GT cable catalog or replace legacy meta-tile IDs.
+
+Those behaviors remain explicit subsequent milestones. This keeps the first in-game host testable without creating a misleading, functionally incomplete "GT cable port".
