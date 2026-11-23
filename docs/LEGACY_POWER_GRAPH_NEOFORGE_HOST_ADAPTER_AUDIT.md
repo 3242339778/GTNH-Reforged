@@ -267,3 +267,29 @@ The first code change should register a dedicated prototype cable Block, BlockEn
 - persist a finished GT cable catalog or replace legacy meta-tile IDs.
 
 Those behaviors remain explicit subsequent milestones. This keeps the first in-game host testable without creating a misleading, functionally incomplete "GT cable port".
+
+
+## Prototype cable host implementation (2026-11-23)
+
+The first Layer 4 shell is now present on the feature branch:
+
+- `block/PrototypePowerCableBlock`: a Block implementing `EntityBlock`, creating its dedicated BlockEntity.
+- `block/PrototypePowerCableBlockEntity`: owns exactly one stable `LegacyPowerCableHostState`; forwards `onLoad()`, `onChunkUnloaded()`, and `setRemoved()` to the corresponding cache lifecycle hooks; exposes an explicitly server-only factory for `NeoForgeLegacyPowerNeighborAccess`.
+- `registry/ModBlocks`: registers the prototype Block and its BlockEntityType using NeoForge DeferredRegister.
+- `registry/ModItems`: registers a BlockItem for the prototype.
+- `GTNHReforged`: registers the block, block-entity-type, and item DeferredRegisters on the mod event bus.
+
+### Deliberate limits of this first code milestone
+
+This is a registration/lifecycle shell only. It does not yet implement:
+- the GT six-way connection policy or reciprocal pipe connection;
+- occupied-connected-side scanning and topology invalidation on neighbor changes;
+- cable variant/material properties or GT meta-tile identity;
+- graph construction, consumer discovery, energy injection or transfer;
+- cable geometry, collision adaptation, covers, rendering, or a creative-tab presentation.
+
+The host does not clear the graph merely because `setRemoved()` runs: the precise permanent-removal versus unload semantics must be integrated with the real block-removal path and verified in-game. Chunk unload is forwarded separately. This avoids accidentally destroying graph state during ordinary chunk lifecycle transitions.
+
+### Verification status
+
+The source was authored against the NeoForge 26.3 DeferredRegister examples and 26.3.x BlockEntity extension lifecycle surface. It has **not yet been compiled against the project's pinned NeoForge 26.3.0.113 artifact**. Local `compileJava`, focused tests, and a launch/placement smoke test remain required before treating the shell as verified.
