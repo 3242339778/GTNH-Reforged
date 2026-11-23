@@ -446,3 +446,10 @@ Added pure-Java `LegacyPowerConnectionMaskChange` and `LegacyPowerCableState.upd
 ### Bridge work still outstanding
 
 The NeoForge host must still mirror the external side effects in the same order: invalidate neighboring loaded cable graph roots without loading chunks, issue the equivalent block/network update, and synchronize the connection mask. The pure-Java state update does not claim those world effects have been implemented.
+
+
+### NeoForge prototype: adjacent graph-root invalidation
+
+The prototype BlockEntity now exposes `updateConnectionFlags(int)`. It applies the pure-Java mask transition using the current server tick, then inspects all six adjacent positions with `ServerChunkCache.getChunkNow()`. For each already-loaded adjacent `PrototypePowerCableBlockEntity`, it invalidates that neighbor's shared graph root. It does not request chunks and does not use the neighbor cache for this topology operation: the legacy `markCableTopologyChanged()` path performs a fresh loaded-world lookup, so stale cached references must not decide which neighboring graph is invalidated.
+
+Scope limitation: this first bridge implementation recognizes only adjacent prototype cable BlockEntities, not arbitrary future GT cable host implementations. It also does not yet issue the equivalent GregTech cable update notification or synchronize the mask to clients. Those effects must be added when the prototype gains its actual connection negotiation and network/state replication path.
