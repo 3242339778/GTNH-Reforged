@@ -63,6 +63,38 @@ class LegacyPowerCableHostStateTest {
     }
 
     @Test
+    void chunkUnloadThenSetRemovedIsClassifiedAsChunkLifecycle() {
+        LegacyPowerCableHostState host = new LegacyPowerCableHostState();
+
+        host.onChunkUnload();
+
+        assertEquals(
+            LegacyPowerCableHostState.SetRemovedContext.AFTER_CHUNK_UNLOAD,
+            host.onSetRemoved());
+    }
+
+    @Test
+    void setRemovedWithoutChunkUnloadIsNotAutomaticallyTreatedAsChunkUnload() {
+        LegacyPowerCableHostState host = new LegacyPowerCableHostState();
+
+        assertEquals(
+            LegacyPowerCableHostState.SetRemovedContext.WITHOUT_CHUNK_UNLOAD,
+            host.onSetRemoved());
+    }
+
+    @Test
+    void loadAfterChunkUnloadResetsPendingChunkUnloadContext() {
+        LegacyPowerCableHostState host = new LegacyPowerCableHostState();
+        host.onChunkUnload();
+
+        host.onValidate();
+
+        assertEquals(
+            LegacyPowerCableHostState.SetRemovedContext.WITHOUT_CHUNK_UNLOAD,
+            host.onSetRemoved());
+    }
+
+    @Test
     void positionChangeClearsBothNegativeAndPositiveEntries() {
         LegacyPowerCableHostState host = new LegacyPowerCableHostState();
         Object neighbor = new Object();
@@ -80,7 +112,6 @@ class LegacyPowerCableHostStateTest {
                 host.neighborCache().cachedResult(side, false, tile -> false).status());
         }
     }
-
 
     private enum Lifecycle {
         INVALIDATE,
