@@ -53,7 +53,7 @@ Do not force-load chunks to answer graph questions. The exact legacy behavior is
 - `GenerateNodeMapPower.getAdjacentTileEntityIfLoaded` checks `blockExists` only when the adjacent position crosses a chunk boundary; otherwise it calls `getTileEntity` directly. This helper is used in the power consumer discovery path.
 - IC2 sink discovery passes a null adjacent tile to `acceptsEnergyFrom` when that cross-chunk target is unloaded. Do not replace this with forced chunk access or a speculative lookup.
 
-The NeoForge host boundary should expose enough information to preserve all these cases, for example a lookup result with `LOADED_WITH_BLOCK_ENTITY`, `LOADED_WITHOUT_BLOCK_ENTITY`, and `UNLOADED`. The legacy graph-walk adapter can deliberately map the latter two to the same null behavior where the 1.7.10 caller did so, while connection checking must retain the distinct unloaded result (-1 semantics).
+The NeoForge host boundary should expose enough information to preserve all these cases, for example a lookup result with `LOADED_WITH_BLOCK_ENTITY`, `LOADED_WITHOUT_BLOCK_ENTITY`, and `UNLOADED`. The pure-Java `LegacyPowerNeighborCache` now models the six per-direction cache slots, the unknown/known-empty/cached-object states, cross-chunk invalidation, invalid cached-object retry, and the two upstream cache-clear operations. It deliberately receives lookup results from the host rather than accessing a world itself. The legacy graph-walk adapter can deliberately map the latter two to the same null behavior where the 1.7.10 caller did so, while connection checking must retain the distinct unloaded result (-1 semantics).
 
 ### Neighbor cache and unloaded-chunk semantics
 
@@ -68,7 +68,7 @@ The world adapter must not treat all null-like lookups as interchangeable:
 
 `BaseTileEntity` also clears cached null markers on neighbor-block changes, tile validation, invalidation, and chunk unload. The cross-chunk cache is invalidated before the loaded check because loading a neighboring chunk does not necessarily issue the block update that would otherwise clear a cached empty marker.
 
-This cache is a host-tile concern, not a graph-core concern. Keep it out of `LegacyPowerTopologyWalker`; implement it in the future ported cable/base block entity or a narrowly scoped host neighbor-cache helper.
+This cache is a host-tile concern, not a graph-core concern. Keep it out of `LegacyPowerTopologyWalker`; `LegacyPowerNeighborCache` is the pure-Java behavioral model, while the future ported cable/base block entity must own one instance and invoke `clearEmptyMarkers()` for adjacent-block changes, `validate()`, `invalidate()`, and chunk unload, and `clearAll()` when its coordinates change.
 
 ### Connection and occupied-side semantics
 
@@ -164,6 +164,7 @@ Reference API pages: [Level](https://aldak0.ru/javadoc/26.3.x/net/minecraft/worl
 - Pure-Java graph core: locally verified by the development machine's complete `legacy.power.*Test` Gradle test task.
 - `LegacyPowerCableState`: implemented; the focused `LegacyPowerCableStateTest` and complete `legacy.power.*Test` tasks both reported `BUILD SUCCESSFUL` on the development machine.
 - `LegacyPowerNeighborLookup`: implemented with five focused unit tests; `LegacyPowerNeighborLookupTest` and the complete `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
+- `LegacyPowerNeighborCache`: implemented as a pure-Java six-direction cache model with ten focused tests; local Gradle verification pending.
 - `LegacyPowerConnectionResult`: implemented to preserve the legacy positive / zero / -1 connection result semantics; `LegacyPowerConnectionResultTest` and the complete `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
 - Concrete NeoForge cable/block-entity host: not implemented.
 - Concrete GT consumer-family adapters: not implemented.
