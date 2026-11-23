@@ -71,7 +71,7 @@ The Minecraft 26.x `ChunkAccess`/chunk API exposes chunk-local block-state and B
 
 ## Temporary ChunkEvent.Unload diagnostic
 
-`PrototypePowerCableChunkUnloadDiagnostics` is a read-only NeoForge game-bus subscriber for `ChunkEvent.Unload`.
+`PrototypePowerCableChunkUnloadDiagnostics` is registered as an instance listener on `NeoForge.EVENT_BUS` during mod construction and observes `ChunkEvent.Unload`. This avoids relying on an `EventBusSubscriber.bus` annotation member that is not present in the pinned 26.3.0.113 API.
 
 For each unloading chunk it:
 - logs side and chunk coordinates;
@@ -79,7 +79,7 @@ For each unloading chunk it:
 - logs each matching cable position and its `hostState@` identity (or reports an unexpected/missing BlockEntity);
 - logs the total number of prototype cable blocks found.
 
-The listener does not mutate graph state, clear neighbor caches, force-load chunks, or change removal classification. It exists only to correlate the chunk event with the existing BlockEntity `onChunkUnloaded` and `setRemoved` diagnostics.
+The listener uses `ChunkPos.x()` / `ChunkPos.z()` accessors and does not mutate graph state, clear neighbor caches, force-load chunks, or change removal classification. It exists only to correlate the chunk event with the existing BlockEntity `onChunkUnloaded` and `setRemoved` diagnostics.
 
 Expected server log sequence for a chunk containing one prototype cable:
 
