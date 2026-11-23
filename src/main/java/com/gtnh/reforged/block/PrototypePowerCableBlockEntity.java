@@ -52,8 +52,11 @@ public final class PrototypePowerCableBlockEntity extends BlockEntity {
      * invalidation are server-only, matching the upstream callback.
      */
     public void onAdjacentBlockChange() {
+        // This must precede the scan: clearing empty markers afterwards would
+        // discard freshly observed empty results, while scanning beforehand
+        // could hide a newly placed endpoint behind a stale empty marker.
+        hostState.prepareAdjacentBlockChange();
         if (!(level instanceof ServerLevel serverLevel)) {
-            hostState.onAdjacentBlockChange();
             return;
         }
 
