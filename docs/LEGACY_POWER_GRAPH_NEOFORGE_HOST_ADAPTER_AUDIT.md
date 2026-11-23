@@ -355,3 +355,14 @@ The prototype now maps the cache-reset and endpoint-occupancy branch:
 - The prototype does not yet have GT's full `MetaPipeEntity.setCheckConnections()` policy or reciprocal connection implementation; that remains a separate milestone. The connection mask is currently supplied by the cable state and defaults to zero.
 
 Focused tests cover changed occupancy, unchanged occupancy, no direct node, negative-marker clearing, and preservation of positive neighbor references.
+
+
+### Local verification — neighbor-change milestone (2026-11-23)
+
+The user ran the following commands after pulling the neighbor-change implementation:
+
+- `.gradlew.bat test --tests "com.gtnh.reforged.legacy.power.LegacyPowerCableHostStateTest" --rerun` — BUILD SUCCESSFUL; 3 tasks executed, 3 up-to-date.
+- `.gradlew.bat test --tests "com.gtnh.reforged.legacy.power.*Test" --rerun` — BUILD SUCCESSFUL; test task executed, 5 tasks up-to-date.
+- `.gradlew.bat compileJava --rerun` — BUILD SUCCESSFUL in 25s; `compileJava` executed, `processResources` up-to-date.
+
+This verifies the pure-Java host-state tests and a forced Java compilation of the current NeoForge adapter. It does not yet verify live in-game neighbor notifications, reciprocal connection negotiation, or delayed connection-check behavior.
