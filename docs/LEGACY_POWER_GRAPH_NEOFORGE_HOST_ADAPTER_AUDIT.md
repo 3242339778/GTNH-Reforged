@@ -348,7 +348,8 @@ Upstream GT5-Unofficial 5.09.54.275 `BaseMetaPipeEntity.onNeighborBlockChange(x,
 
 The prototype now maps the cache-reset and endpoint-occupancy branch:
 - `PrototypePowerCableBlock.neighborChanged(...)` forwards the notification to its BlockEntity.
-- Client-side handling clears only negative neighbor-cache markers.
+- The host clears negative neighbor-cache markers before scanning; this ordering is essential because a stale cached-empty sentinel would otherwise hide a newly placed endpoint. Freshly scanned empty results are retained after the scan.
+- Client-side handling stops after the cache-marker reset.
 - Server-side handling scans connected directions through `NeoForgeLegacyPowerNeighborAccess`; unloaded chunks remain non-occupied and are never force-loaded.
 - `LegacyPowerCableHostState.onAdjacentBlockChange(observedMask, serverTick)` invalidates the shared graph root only when a direct node exists and the occupancy mask actually changed. It does not clear the graph or rebuild it synchronously.
 - The prototype does not yet have GT's full `MetaPipeEntity.setCheckConnections()` policy or reciprocal connection implementation; that remains a separate milestone. The connection mask is currently supplied by the cable state and defaults to zero.
