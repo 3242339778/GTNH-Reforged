@@ -49,9 +49,14 @@ public final class LegacyPowerCableHostState {
         neighborCache.clearEmptyMarkers();
     }
 
-    /** Forward from BlockEntity.onChunkUnloaded(). */
+    /**
+     * Mirrors the GT5U chunk-unload chain:
+     * CommonBaseMetaTileEntity.onChunkUnload() -> BaseMetaPipeEntity.onUnload()
+     * clears the graph before BaseTileEntity.onChunkUnload() clears cache markers.
+     */
     public void onChunkUnload() {
         chunkUnloadPending = true;
+        cableState.clearGraphImmediately();
         neighborCache.clearEmptyMarkers();
     }
 
