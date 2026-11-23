@@ -133,6 +133,31 @@ Callers then deliberately map the result according to their upstream contract: g
 
 Reference API pages: [Level](https://aldak0.ru/javadoc/26.3.x/net/minecraft/world/level/Level.html), [LevelReader](https://aldak0.ru/javadoc/26.3.x/net/minecraft/world/level/LevelReader.html), [ServerLevel](https://aldak0.ru/javadoc/26.3.x/net/minecraft/server/level/ServerLevel.html), and [BlockEntity](https://aldak0.ru/javadoc/26.3.x/net/minecraft/world/level/block/entity/BlockEntity.html).
 
+## 26.3 registration and GameTest integration audit
+
+The current mod entry point receives the NeoForge mod event bus, but only registers `ModItems.ITEMS`. There is not yet a block registry, a block-entity-type registry, or a concrete cable block/entity. Keep that fact explicit: the host-state bundle is not a registered game object.
+
+The official NeoForge 26.3.x `DeferredRegister` source documents the expected registration shape:
+
+- Blocks: `DeferredRegister.createBlocks(MOD_ID)`.
+- Block entity types: `DeferredRegister.create(BuiltInRegistries.BLOCK_ENTITY_TYPE, MOD_ID)`.
+- A block entity type is created from `BlockEntityType.Builder.of(factory, validBlock).build(null)`.
+- Each deferred register is attached to the mod event bus.
+
+For in-game tests, do not port Forge's legacy `@GameTestHolder` / `@GameTest` annotations by assumption. The 26.3.x NeoForge source exposes `RegisterGameTestsEvent` on the mod bus. It registers `GameTestInstance` values into the test-instance registry; the event is only run when `GameTestHooks.isGametestEnabled()` is true. NeoForge's own 26.3.x test sources use the newer `net.neoforged.testframework` API for their annotated test suites, but that framework is a separate project dependency in NeoForge's own test build and is not currently declared by this mod.
+
+Practical consequence: first implement and compile the smallest real Block + BlockEntity registration using this project's pinned 26.3.0.113 artifacts. Then choose one test route deliberately:
+1. Register a vanilla `GameTestInstance` from `RegisterGameTestsEvent`, with its exact 26.3.0.113 constructor/data contract verified from the local dependency sources; or
+2. Add and configure the NeoForge testframework dependency intentionally if using its `DynamicTest` / `@TestHolder` authoring model.
+
+Do not invent a GameTest constructor or add the internal testframework as a production dependency just because NeoForge's own test repository uses it.
+
+Primary 26.3.x source references:
+- [DeferredRegister.java](https://github.com/neoforged/NeoForge/blob/26.3.x/src/main/java/net/neoforged/neoforge/registries/DeferredRegister.java)
+- [RegisterGameTestsEvent.java](https://github.com/neoforged/NeoForge/blob/26.3.x/src/main/java/net/neoforged/neoforge/event/RegisterGameTestsEvent.java)
+- [GameTestHooks.java](https://github.com/neoforged/NeoForge/blob/26.3.x/src/main/java/net/neoforged/neoforge/gametest/GameTestHooks.java)
+- [NeoForge ItemTests.java](https://github.com/neoforged/NeoForge/blob/26.3.x/tests/src/main/java/net/neoforged/neoforge/debug/item/ItemTests.java)
+
 ## Mapping to the current pure-Java contracts
 
 | Upstream responsibility | Current pure-Java boundary | Host implementation requirement |
@@ -180,6 +205,8 @@ Reference API pages: [Level](https://aldak0.ru/javadoc/26.3.x/net/minecraft/worl
 - `LegacyPowerNeighborCache`: implemented as a pure-Java six-direction cache model with eleven focused tests; the final focused suite and the full `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
 - `LegacyPowerConnectionResult`: implemented to preserve the legacy positive / zero / -1 connection result semantics; `LegacyPowerConnectionResultTest` and the complete `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
 - `NeoForgePowerNeighborAccess`: implemented against the 26.3 `ServerLevel` / `BlockEntity` API surface; compile against the project's exact NeoForge 26.3.0.113 dependency is pending local verification.
-- Concrete NeoForge GT cable/block-entity host: not implemented.
+- Concrete NeoForge GT cable/block-entity host: not implemented. The current main mod entry point registers only items.
+- Block and BlockEntityType registration API: audited against the NeoForge 26.3.x DeferredRegister source; project integration pending.
+- GameTest registration: audited against 26.3.x `RegisterGameTestsEvent`; exact `GameTestInstance` construction must be verified against the pinned 26.3.0.113 local dependency before implementation.
 - Concrete GT consumer-family adapters: not implemented.
 - In-game/GameTest verification: not implemented.
