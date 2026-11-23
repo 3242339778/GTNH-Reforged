@@ -31,8 +31,22 @@ public final class LegacyPowerNeighborCache {
         LegacyPowerDirection side,
         boolean crossesChunkBorder,
         Predicate<Object> isInvalid) {
+        return cachedResult(side, crossesChunkBorder, isInvalid, tile -> true);
+    }
+
+    /**
+     * Also verifies the cached tile's coordinates against the requested
+     * adjacent position. A mismatch returns MISMATCH without evicting the
+     * cached object, matching BaseTileEntity's legacy behavior.
+     */
+    public CacheResult cachedResult(
+        LegacyPowerDirection side,
+        boolean crossesChunkBorder,
+        Predicate<Object> isInvalid,
+        Predicate<Object> matchesTarget) {
         Objects.requireNonNull(side, "side");
         Objects.requireNonNull(isInvalid, "isInvalid");
+        Objects.requireNonNull(matchesTarget, "matchesTarget");
         int index = requirePhysicalSide(side);
 
         if (crossesChunkBorder) {
@@ -50,6 +64,9 @@ public final class LegacyPowerNeighborCache {
         if (isInvalid.test(cached)) {
             neighbors[index] = null;
             return CacheResult.miss();
+        }
+        if (!matchesTarget.test(cached)) {
+            return CacheResult.mismatch();
         }
         return CacheResult.tile(cached);
     }
@@ -101,7 +118,8 @@ public final class LegacyPowerNeighborCache {
     public enum CacheStatus {
         MISS,
         EMPTY,
-        TILE
+        TILE,
+        MISMATCH
     }
 
     public record CacheResult(CacheStatus status, Object tile) {
@@ -123,6 +141,10 @@ public final class LegacyPowerNeighborCache {
 
         public static CacheResult tile(Object tile) {
             return new CacheResult(CacheStatus.TILE, Objects.requireNonNull(tile, "tile"));
+        }
+
+        public static CacheResult mismatch() {
+            return new CacheResult(CacheStatus.MISMATCH, null);
         }
     }
 }
