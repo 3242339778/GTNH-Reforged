@@ -70,6 +70,18 @@ public final class LegacyPowerCableState
         return nodePath == null ? null : nodePath.getNodeMapOwner();
     }
 
+    public int getConnectionFlags() {
+        return connectionFlags;
+    }
+
+    public boolean hasMetaTile() {
+        return metaTilePresent;
+    }
+
+    public boolean hasDirectNode() {
+        return node != null;
+    }
+
     public int getOccupiedConnectedSides() {
         return occupiedConnectedSides;
     }
