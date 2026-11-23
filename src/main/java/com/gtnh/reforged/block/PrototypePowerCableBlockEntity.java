@@ -1,5 +1,6 @@
 package com.gtnh.reforged.block;
 
+import com.gtnh.reforged.GTNHReforged;
 import com.gtnh.reforged.legacy.power.LegacyPowerCableHostState;
 import com.gtnh.reforged.legacy.power.bridge.neoforge.NeoForgeLegacyPowerNeighborAccess;
 import com.gtnh.reforged.registry.ModBlocks;
@@ -45,17 +46,31 @@ public final class PrototypePowerCableBlockEntity extends BlockEntity {
     public void onLoad() {
         super.onLoad();
         hostState.onValidate();
+        logLifecycle("onLoad");
     }
 
     @Override
     public void onChunkUnloaded() {
         hostState.onChunkUnload();
         super.onChunkUnloaded();
+        logLifecycle("onChunkUnloaded");
     }
 
     @Override
     public void setRemoved() {
         hostState.onInvalidate();
         super.setRemoved();
+        logLifecycle("setRemoved");
+    }
+
+    /** Temporary prototype diagnostic; remove or lower to debug after lifecycle validation. */
+    private void logLifecycle(String callback) {
+        String side = level == null ? "detached" : level.isClientSide ? "client" : "server";
+        GTNHReforged.LOGGER.info(
+            "Prototype power cable lifecycle: callback={}, side={}, pos={}, hostState@{}",
+            callback,
+            side,
+            getBlockPos(),
+            Integer.toHexString(System.identityHashCode(hostState)));
     }
 }
