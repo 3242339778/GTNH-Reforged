@@ -61,10 +61,25 @@ public final class PrototypePowerCableBlockEntity extends BlockEntity {
     @Override
     public void setRemoved() {
         LegacyPowerCableHostState.SetRemovedContext context = hostState.onSetRemoved();
-        hostState.onInvalidate();
         super.setRemoved();
 
         LegacyPowerRemovalDecision.Result decision = classifyRemoval(context);
+        boolean followedChunkUnload =
+            context == LegacyPowerCableHostState.SetRemovedContext.AFTER_CHUNK_UNLOAD;
+        boolean confirmedReplacement =
+            decision == LegacyPowerRemovalDecision.Result.BLOCK_REPLACED
+                || decision == LegacyPowerRemovalDecision.Result.HOST_REPLACED;
+
+        // GT5U clears the graph in onUnload() for chunk unloads and in
+        // invalidate() for permanent host/block replacement. Do not run the
+        // permanent-removal path a second time after onChunkUnloaded().
+        if (!followedChunkUnload && confirmedReplacement) {
+            hostState.clearGraphImmediately();
+        }
+        if (!followedChunkUnload) {
+            hostState.onInvalidate();
+        }
+
         logLifecycle("setRemoved", decision.name());
     }
 
