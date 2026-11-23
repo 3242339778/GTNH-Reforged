@@ -164,7 +164,7 @@ Reference API pages: [Level](https://aldak0.ru/javadoc/26.3.x/net/minecraft/worl
 - Pure-Java graph core: locally verified by the development machine's complete `legacy.power.*Test` Gradle test task.
 - `LegacyPowerCableState`: implemented; the focused `LegacyPowerCableStateTest` and complete `legacy.power.*Test` tasks both reported `BUILD SUCCESSFUL` on the development machine.
 - `LegacyPowerNeighborLookup`: implemented with five focused unit tests; `LegacyPowerNeighborLookupTest` and the complete `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
-- `LegacyPowerConnectionResult`: implemented to preserve the legacy positive / zero / -1 connection result semantics; five focused tests added, local Gradle verification pending.
+- `LegacyPowerConnectionResult`: implemented to preserve the legacy positive / zero / -1 connection result semantics; `LegacyPowerConnectionResultTest` and the complete `legacy.power.*Test` suite both reported `BUILD SUCCESSFUL` locally on 2026-11-23.
 - Concrete NeoForge cable/block-entity host: not implemented.
 - Concrete GT consumer-family adapters: not implemented.
 - In-game/GameTest verification: not implemented.
