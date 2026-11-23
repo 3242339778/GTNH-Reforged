@@ -165,4 +165,4 @@ More concretely:
 - Pure Java graph unit tests: prior local user reports show the `legacy.power.*Test` suite passed; this review did not rerun local Gradle tasks.
 - Minecraft bridge compilation: the current project conversation records a successful local `compileJava` for the root-package adapter on 2026-11-23. Re-run after any package move.
 - Registered cable host and GameTests: not implemented / not verified in game.
-- No code was moved or behavior changed by this classification document.
+- The classification document itself made no code changes; the separate boundary-refactor commits listed above moved the bridge adapter and removed the core-to-bridge factory and duplicate adapter.
