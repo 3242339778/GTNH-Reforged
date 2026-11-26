@@ -111,7 +111,7 @@ public final class LegacyBoilerFluidResourceHandler implements ResourceHandler<F
     public long getAmountAsLong(int index) {
         return switch (Objects.checkIndex(index, TANK_COUNT)) {
             case WATER_INDEX -> {
-                String exposedId = state.water().exposedFluidId();
+                String exposedId = journal.state().water().exposedFluidId();
                 if (exposedId == null) {
                     yield 0;
                 }
@@ -119,7 +119,7 @@ public final class LegacyBoilerFluidResourceHandler implements ResourceHandler<F
                 yield journal.state().water().exposedAmount();
             }
             case STEAM_INDEX -> {
-                String exposedId = state.exposedSteamFluidId();
+                String exposedId = journal.state().exposedSteamFluidId();
                 if (exposedId == null) {
                     yield 0;
                 }
