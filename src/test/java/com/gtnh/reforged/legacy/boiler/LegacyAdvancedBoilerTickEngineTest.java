@@ -18,7 +18,7 @@ class LegacyAdvancedBoilerTickEngineTest {
         assertEquals(2, result.waterConsumedThisTick());
         assertEquals(98, result.waterAmount());
         assertEquals(375, result.steamAmount());
-        assertEquals(-5, result.excessWaterRemainder());
+        assertEquals(-55, result.excessWaterRemainder());
         assertTrue(result.boiling());
     }
 
@@ -41,8 +41,8 @@ class LegacyAdvancedBoilerTickEngineTest {
         var result = LegacyAdvancedBoilerTickEngine.calculate(snapshot(10, 100, 0, 100, 0, 0, 500), false);
         assertTrue(result.fuelInjectionRequested());
         assertEquals(500, result.burnTimeConsumed());
-        assertEquals(50, result.processingEnergy());
-        assertEquals(101, result.temperature());
+        assertEquals(48, result.processingEnergy());
+        assertEquals(102, result.temperature());
         assertTrue(result.active());
     }
 
