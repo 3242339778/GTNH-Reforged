@@ -195,7 +195,7 @@ Implemented behavior:
 - Water insertion delegates its tank-local acceptance arithmetic to `LegacyBoilerWaterShadowState.fill(...)`, including the transient negative-water capacity headroom.
 - Steam extraction delegates to `LegacyBoilerFluidState.extractSteam(...)` and cannot underflow.
 - Water extraction and steam insertion are always rejected.
-- Simulation uses the model's non-mutating path and does not register a journal snapshot.
+- The handler preflights acceptance through the model's non-mutating path, then applies the accepted amount inside the caller's transaction. NeoForge's ResourceHandler has no boolean simulation parameter; callers that want a simulation can perform the operation in a transaction and close it without committing.
 - Positive mutations call the shared aggregate journal immediately before changing state.
 - Every operation checks the supplied access policy live. A direction-specific view can compose machine-wide, physical-side, and Cover gates without copying fluid state.
 - Wrong resources, wrong indices, denied operations, and zero-amount requests do not mutate state or trigger root-commit callbacks.
