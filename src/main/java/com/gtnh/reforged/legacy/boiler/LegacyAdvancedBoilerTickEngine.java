@@ -51,6 +51,13 @@ public final class LegacyAdvancedBoilerTickEngine {
             steam += steamProduced;
         }
 
+        // Boiling state is updated in this source phase, before fuel injection and heat-up.
+        boolean boiling = previousBoiling;
+        if (input.tick() % 10 == 0) {
+            if (temperature > 100 && input.waterIsValid() && water > 0) boiling = true;
+            else if (temperature <= 100) boiling = false;
+        }
+
         // 3. Overflow behavior uses getCapacity() (waterCapacity), not steamCapacity.
         boolean vented = steam > input.waterCapacity();
         if (vented) steam = (input.waterCapacity() * 3) / 4;
@@ -76,14 +83,6 @@ public final class LegacyAdvancedBoilerTickEngine {
             temperature += input.heatUpAmount();
             if (energy <= 0) fuelMaxEnergy = 0;
             active = energy > 0;
-        }
-
-        // Boiling flag source behavior: set on eligible production cadence;
-        // reset only at <=100, otherwise retain the previous state.
-        boolean boiling = previousBoiling;
-        if (input.tick() % 10 == 0) {
-            if (temperature > 100 && input.waterIsValid() && water > 0) boiling = true;
-            else if (temperature <= 100) boiling = false;
         }
 
         return new LegacyAdvancedBoilerTickResult(
