@@ -63,7 +63,7 @@ class LegacyBoilerFluidTransferCoreTest {
         var state = newState(-1, 0);
         var callbacks = new AtomicInteger();
         var journal = new LegacyBoilerFluidStateJournal(state, callbacks::incrementAndGet);
-        var core = newCore(state, journal);
+        var core = newCore(state);
 
         try (var root = Transaction.openRoot()) {
             assertEquals(32001, core.insertWater(WATER_ID, 32001, () -> true,
@@ -81,7 +81,7 @@ class LegacyBoilerFluidTransferCoreTest {
         var state = newState(100, 75);
         var callbacks = new AtomicInteger();
         var journal = new LegacyBoilerFluidStateJournal(state, callbacks::incrementAndGet);
-        var core = newCore(state, journal);
+        var core = newCore(state);
 
         try (var root = Transaction.openRoot()) {
             assertEquals(40, core.extractSteam(STEAM_ID, 40, () -> true,
@@ -99,7 +99,7 @@ class LegacyBoilerFluidTransferCoreTest {
         var state = newState(100, 75);
         var callbacks = new AtomicInteger();
         var journal = new LegacyBoilerFluidStateJournal(state, callbacks::incrementAndGet);
-        var core = newCore(state, journal);
+        var core = newCore(state);
 
         try (var root = Transaction.openRoot()) {
             assertEquals(75, core.extractSteam(STEAM_ID, 100, () -> true,
@@ -118,7 +118,7 @@ class LegacyBoilerFluidTransferCoreTest {
         var state = newState(100, 500);
         var callbacks = new AtomicInteger();
         var journal = new LegacyBoilerFluidStateJournal(state, callbacks::incrementAndGet);
-        var core = newCore(state, journal);
+        var core = newCore(state);
 
         try (var root = Transaction.openRoot()) {
             assertEquals(0, core.insertWater(STEAM_ID, 20, () -> true,
@@ -138,7 +138,7 @@ class LegacyBoilerFluidTransferCoreTest {
         var state = newState(100, 500);
         var callbacks = new AtomicInteger();
         var journal = new LegacyBoilerFluidStateJournal(state, callbacks::incrementAndGet);
-        var core = newCore(state, journal);
+        var core = newCore(state);
         var policy = new MutablePolicy();
 
         policy.allowed.set(false);
@@ -199,7 +199,7 @@ class LegacyBoilerFluidTransferCoreTest {
         var state = newState(100, 500);
         var callbacks = new AtomicInteger();
         var journal = new LegacyBoilerFluidStateJournal(state, callbacks::incrementAndGet);
-        var core = newCore(state, journal);
+        var core = newCore(state);
 
         try (var root = Transaction.openRoot()) {
             assertEquals(0, core.insertWater(WATER_ID, 0, () -> true,
