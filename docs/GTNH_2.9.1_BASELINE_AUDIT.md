@@ -109,3 +109,54 @@ Their names suggest trigger-related quest content, but their actual semantics mu
 
 ---
 This document supersedes any use of 2.9.0 as the current GTNH content baseline. Historical findings from 2.9.0 remain provisional until checked against 2.9.1.
+
+
+## 7. 2.9.2 Release Delta (Candidate Baseline, 2026-11-26)
+
+GTNH 2.9.2 was published on 2026-11-25. Keep the 2.9.1 audit intact as a historical baseline; 2.9.2 is now the candidate current baseline pending semantic audit.
+
+Sources:
+- [GTNH Modpack 2.9.2 README](https://github.com/GTNewHorizons/GT-New-Horizons-Modpack/blob/2.9.2/README.md)
+- [2.9.1 to 2.9.2 compare](https://github.com/GTNewHorizons/GT-New-Horizons-Modpack/compare/2.9.1...2.9.2)
+- [2.9.2 release](https://github.com/GTNewHorizons/GT-New-Horizons-Modpack/releases/tag/2.9.2)
+
+### 7.1 Pack repository comparison
+
+The compare reports 8 commits and the returned file list covers README, quest data, configuration, language templates, textures, and vending-machine trade data. Notable changes include removal of several LESU-related quest files, changes to glass-upgrade and endgame quest JSON, additions of IC2 cell textures, and 42 additions to the vending-machine trade database. This is a repository-level delta only, not a full semantic assessment.
+
+### 7.2 Selected dependency changes
+
+| Component | 2.9.1 | 2.9.2 |
+|---|---|---|
+| GT5-Unofficial | 5.09.54.275 | 5.09.54.277 |
+| GTNHLib | 0.11.58 | 0.11.58 |
+| NewHorizonsCoreMod | 2.9.105 | 2.9.106 |
+| NotEnoughItems | 2.8.175-GTNH | 2.8.176-GTNH |
+| ModularUI2 | 2.3.96-1.7.10 | 2.3.97-1.7.10 |
+| VendingMachine | 0.4.104 | 0.4.105 |
+| GTNHExtLib | 1.0.6 | 1.0.6 |
+
+This is a focused selection, not a complete dependency inventory.
+
+### 7.3 GT5-Unofficial 5.09.54.275 to 5.09.54.277
+
+The upstream comparison reports 15 commits and 300 changed files. No direct changes to the previously audited core graph source files (`BaseMetaPipeEntity`, `MetaPipeEntity`, `MTECable`, `GenerateNodeMap`, `Node`, `NodePath`, `PowerNodePath`, `PowerNodes`) were present in the returned changed-file list. This is a preliminary path-level observation, not proof of unchanged runtime behavior across the full dependency set.
+
+The comparison does contain other energy-adjacent and machine changes, including boiler and advanced boiler logic, plus changes in GTNH Intergalactic, TecTech, and other modules. These are outside the current cable graph core audit and should be tracked for their respective future migration work.
+
+### 7.4 Upstream deltas requiring follow-up
+
+- NewHorizonsCoreMod 2.9.105 to 2.9.106: 3 commits; ScriptChisel, ScriptThaumicEnergistics, TCHelper, and related cell textures changed.
+- NEI 2.8.175-GTNH to 2.8.176-GTNH: 3 commits; bookmark panel/tree toolbar, drawable resources, recipe GUI/catalyst and scrollbar behavior, plus UI texture/theme additions. Preserve these behaviors in the custom viewer audit where applicable.
+- ModularUI2 2.3.96 to 2.3.97: compare reports divergence as well as commits; changes include ClientProxy, LocatedWidget viewport behavior, TextFieldHandler, and test/workflow changes. Verify exact ancestry and semantics before assuming a simple tag upgrade.
+- VendingMachine 0.4.104 to 0.4.105: one commit affecting configuration, vending GUI behavior, and localization; inspect before porting.
+
+### 7.5 Status
+
+- Confirmed: README versions at tags 2.9.1 and 2.9.2 for the selected dependencies.
+- Confirmed: pack repository compare summary and selected upstream compare metadata/file lists.
+- Preliminary: no direct filename-level change detected in the previously audited GT5U core power-graph files for .275 to .277.
+- Not yet completed: semantic review of all changed GT5U files, quest/config/transaction changes, and the upstream changes listed above.
+- Policy: retain 2.9.1 as a historical baseline; use 2.9.2 as candidate current baseline after remaining audits. Do not silently replace prior source evidence or claim full 2.9.2 behavioral verification.
+
+---
