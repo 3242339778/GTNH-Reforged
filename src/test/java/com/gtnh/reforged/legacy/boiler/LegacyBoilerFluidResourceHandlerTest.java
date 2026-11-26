@@ -2,6 +2,8 @@ package com.gtnh.reforged.legacy.boiler;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import net.minecraft.SharedConstants;
+import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
@@ -10,8 +12,16 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class LegacyBoilerFluidResourceHandlerTest {
-    private static final FluidResource WATER = FluidResource.of(Fluids.WATER);
-    private static final FluidResource STEAM = FluidResource.of(Fluids.LAVA);
+    private static FluidResource WATER;
+    private static FluidResource STEAM;
+
+    @org.junit.jupiter.api.BeforeAll
+    static void bootstrapMinecraftRegistries() {
+        SharedConstants.tryDetectVersion();
+        Bootstrap.bootStrap();
+        WATER = FluidResource.of(Fluids.WATER);
+        STEAM = FluidResource.of(Fluids.LAVA);
+    }
     private static final String WATER_ID = "minecraft:water";
     private static final String STEAM_ID = "minecraft:lava";
 
