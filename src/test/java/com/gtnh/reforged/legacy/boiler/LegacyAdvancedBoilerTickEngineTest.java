@@ -84,4 +84,21 @@ class LegacyAdvancedBoilerTickEngineTest {
         assertTrue(result.boiling());
         assertEquals(0, result.waterAmount());
     }
+
+    @Test void insufficientWaterMatchesSourceAndProducesNegativeAmount() {
+        var result = LegacyAdvancedBoilerTickEngine.calculate(snapshot(30, 110, 10, 1, 0, 0, 0), false);
+        assertEquals(375, result.steamProducedThisTick());
+        assertEquals(2, result.waterConsumedThisTick());
+        assertEquals(-1, result.waterAmount());
+        assertEquals(-55, result.excessWaterRemainder());
+    }
+
+    @Test void negativeWaterAmountBlocksNextProductionGate() {
+        var input = new LegacyAdvancedBoilerTickSnapshot(40, 110, 500, 0, 40,
+            10, 10, -1, 375, true, true, true, 32000, 64000, -55, 0, 750, 10, 2, 1);
+        var result = LegacyAdvancedBoilerTickEngine.calculate(input, false);
+        assertEquals(0, result.steamProducedThisTick());
+        assertEquals(-1, result.waterAmount());
+        assertEquals(375, result.steamAmount());
+    }
 }
