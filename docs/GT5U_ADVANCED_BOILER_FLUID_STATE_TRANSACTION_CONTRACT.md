@@ -1,6 +1,6 @@
 # GT5U Advanced Boiler Fluid State and Transaction Contract
 
-Status: design contract; no NeoForge handler or block-entity adapter implementation.
+Status: aggregate journal and two-index NeoForge fluid handler implemented; capability registration and block-entity integration remain deferred.
 
 ## Purpose
 
@@ -182,3 +182,38 @@ Implementation sequence status:
 2. **NeoForge aggregate journal:** implemented; local verification is pending.
 3. Two-index backing handler and direction-specific views: not implemented.
 4. Capability registration and block-entity integration: not implemented.
+
+
+## 11. Two-index NeoForge fluid handler implementation
+
+`LegacyBoilerFluidResourceHandler` now implements `ResourceHandler<FluidResource>` over the existing aggregate journal.
+
+Implemented behavior:
+
+- Fixed size of two indices: water input at index 0 and steam output at index 1.
+- Reads project signed/non-positive legacy water as `FluidResource.EMPTY` with amount zero. The authoritative signed amount and conversion remainder are not normalized.
+- Water insertion delegates its tank-local acceptance arithmetic to `LegacyBoilerWaterShadowState.fill(...)`, including the transient negative-water capacity headroom.
+- Steam extraction delegates to `LegacyBoilerFluidState.extractSteam(...)` and cannot underflow.
+- Water extraction and steam insertion are always rejected.
+- Simulation uses the model's non-mutating path and does not register a journal snapshot.
+- Positive mutations call the shared aggregate journal immediately before changing state.
+- Every operation checks the supplied access policy live. A direction-specific view can compose machine-wide, physical-side, and Cover gates without copying fluid state.
+- Wrong resources, wrong indices, denied operations, and zero-amount requests do not mutate state or trigger root-commit callbacks.
+- The configured capacity suppliers are clamped to non-negative hints. Actual water acceptance remains authoritative, including the signed transient window.
+
+### Data-component boundary
+
+The current legacy aggregate stores fluid registry IDs as strings and does not persist arbitrary NeoForge data-component patches. To avoid silently collapsing two distinct `FluidResource` values into one legacy ID, this handler currently requires configured water and steam resources to have empty component patches and compares incoming resources using full `FluidResource.equals`.
+
+Component-bearing resource variants are therefore rejected at construction or insertion/extraction. Supporting them requires extending the authoritative legacy state and its snapshot/persistence mapping first; it must not be solved by comparing only registry IDs.
+
+### Tests
+
+`LegacyBoilerFluidResourceHandlerTest` covers fixed indices and projections, water simulation and rollback, negative-window insertion, steam extraction and rollback, direction restrictions, wrong identities, live access gates, no-op callbacks, negative request rejection, and component-bearing configuration rejection.
+
+Implementation sequence status:
+1. Pure Java aggregate and snapshot/restore: implemented and locally verified by the user.
+2. NeoForge aggregate journal: implemented and locally verified by the user.
+3. **Two-index backing handler: implemented; local verification pending.**
+4. Direction-specific views are represented by separate handler instances sharing the same journal and aggregate, with an injected live access policy.
+5. Capability registration and block-entity integration remain deferred.
