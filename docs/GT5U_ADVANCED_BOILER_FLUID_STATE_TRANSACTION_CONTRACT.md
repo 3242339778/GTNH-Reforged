@@ -154,3 +154,31 @@ Implementation sequence status:
 3. Implement and test the NeoForge journal wrapper, including nested transaction behavior.
 4. Implement the two-index backing handler and direction-specific views.
 5. Register the block capability and connect the adapter to the real boiler block entity.
+
+
+## 10. NeoForge aggregate journal implementation
+
+The first NeoForge transaction wrapper is now present:
+
+- `LegacyBoilerFluidStateJournal` extends NeoForge `SnapshotJournal<LegacyBoilerFluidState.Snapshot>`.
+- `createSnapshot()` captures the complete aggregate.
+- `revertToSnapshot(...)` restores water identity, signed water amount, signed remainder, steam identity, and steam amount together.
+- `beforeMutation(TransactionContext)` is the explicit adapter entry point and delegates to `updateSnapshots`.
+- The root-commit action is injected as a `Runnable`; the journal itself has no Level or BlockEntity dependency. The supplied action must safely handle an owner that was removed or unloaded.
+
+The implementation was checked against NeoForge source commit `84d0790633e43646f2710751a1a73db8fab30671`. In particular, `SnapshotJournal`:
+- stores at most one snapshot per transaction depth;
+- moves a committed child snapshot to the parent if the parent has none;
+- releases a child snapshot when the parent already has an older snapshot;
+- restores a snapshot on abort;
+- invokes `onRootCommit` after the root transaction has closed, with `isInTransaction() == false`.
+
+Tests in `LegacyBoilerFluidStateJournalTest` cover root abort, root commit, child commit followed by parent abort, child plus parent commit, child abort with parent commit, repeated updates at one depth, and no-op operations that do not register a snapshot.
+
+This wrapper is still not a fluid handler. Its caller must invoke `beforeMutation` only after validating the operation and determining that a positive state change will occur, immediately before changing the aggregate. Do not call it for simulation, rejected operations, or zero-amount operations.
+
+Implementation sequence status:
+1. **Pure Java aggregate and snapshot/restore:** implemented and locally verified by the user.
+2. **NeoForge aggregate journal:** implemented; local verification is pending.
+3. Two-index backing handler and direction-specific views: not implemented.
+4. Capability registration and block-entity integration: not implemented.
