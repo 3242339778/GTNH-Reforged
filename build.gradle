@@ -117,6 +117,15 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.12.2'
 }
 
+// ModDevGradle attaches the Minecraft/NeoForge development classpath directly
+// to the main source set. The Java plugin does not automatically propagate
+// that source-set classpath to test, so tests that exercise NeoForge-backed
+// adapters must explicitly reuse the main compile and runtime classpaths.
+sourceSets.test {
+    compileClasspath += sourceSets.main.compileClasspath
+    runtimeClasspath += sourceSets.main.runtimeClasspath
+}
+
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
 }
