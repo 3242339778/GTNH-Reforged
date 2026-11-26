@@ -173,7 +173,7 @@ public final class LegacyBoilerFluidResourceHandler implements ResourceHandler<F
         int capacity = nonNegativeCapacity(WATER_INDEX);
         int accepted = Math.max(0,
             state.water().fill(waterFluidId, amount, capacity, false));
-        if (accepted == 0) {
+        if (accepted == 0 || !accessPolicy.canInsertWater(resource)) {
             return 0;
         }
 
@@ -202,7 +202,7 @@ public final class LegacyBoilerFluidResourceHandler implements ResourceHandler<F
         }
 
         int extracted = state.extractSteam(steamFluidId, amount, false);
-        if (extracted == 0) {
+        if (extracted == 0 || !accessPolicy.canExtractSteam(resource)) {
             return 0;
         }
 
