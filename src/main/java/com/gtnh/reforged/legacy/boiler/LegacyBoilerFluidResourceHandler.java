@@ -26,7 +26,7 @@ public final class LegacyBoilerFluidResourceHandler implements ResourceHandler<F
     public static final int TANK_COUNT = 2;
 
     private final LegacyBoilerFluidStateJournal journal;
-    private final LegacyBoilerFluidState state;
+    private final LegacyBoilerFluidTransferCore transferCore;
     private final FluidResource waterResource;
     private final String waterFluidId;
     private final FluidResource steamResource;
@@ -46,13 +46,16 @@ public final class LegacyBoilerFluidResourceHandler implements ResourceHandler<F
         AccessPolicy accessPolicy
     ) {
         this.journal = Objects.requireNonNull(journal, "journal");
-        this.state = journal.state();
         this.waterResource = requirePlainResource(waterResource, "waterResource");
         this.waterFluidId = requireFluidId(waterFluidId, "waterFluidId");
         this.steamResource = requirePlainResource(steamResource, "steamResource");
         this.steamFluidId = requireFluidId(steamFluidId, "steamFluidId");
         this.waterCapacity = Objects.requireNonNull(waterCapacity, "waterCapacity");
         this.steamCapacity = Objects.requireNonNull(steamCapacity, "steamCapacity");
+        this.transferCore = new LegacyBoilerFluidTransferCore(
+            journal.state(), this.waterFluidId, this.steamFluidId,
+            this.waterCapacity, this.steamCapacity
+        );
         this.accessPolicy = Objects.requireNonNull(accessPolicy, "accessPolicy");
     }
 
@@ -85,7 +88,7 @@ public final class LegacyBoilerFluidResourceHandler implements ResourceHandler<F
     public FluidResource getResource(int index) {
         return switch (Objects.checkIndex(index, TANK_COUNT)) {
             case WATER_INDEX -> {
-                String exposedId = state.water().exposedFluidId();
+                String exposedId = journal.state().water().exposedFluidId();
                 if (exposedId == null) {
                     yield FluidResource.EMPTY;
                 }
@@ -93,7 +96,7 @@ public final class LegacyBoilerFluidResourceHandler implements ResourceHandler<F
                 yield waterResource;
             }
             case STEAM_INDEX -> {
-                String exposedId = state.exposedSteamFluidId();
+                String exposedId = journal.state().exposedSteamFluidId();
                 if (exposedId == null) {
                     yield FluidResource.EMPTY;
                 }
@@ -113,7 +116,7 @@ public final class LegacyBoilerFluidResourceHandler implements ResourceHandler<F
                     yield 0;
                 }
                 requireExpectedIdentity(exposedId, waterFluidId, "water");
-                yield state.water().exposedAmount();
+                yield journal.state().water().exposedAmount();
             }
             case STEAM_INDEX -> {
                 String exposedId = state.exposedSteamFluidId();
@@ -121,7 +124,7 @@ public final class LegacyBoilerFluidResourceHandler implements ResourceHandler<F
                     yield 0;
                 }
                 requireExpectedIdentity(exposedId, steamFluidId, "steam");
-                yield state.exposedSteamAmount();
+                yield journal.state().exposedSteamAmount();
             }
             default -> throw new AssertionError("validated index was outside the fixed tank range");
         };
@@ -165,24 +168,15 @@ public final class LegacyBoilerFluidResourceHandler implements ResourceHandler<F
         Objects.checkIndex(index, TANK_COUNT);
         Objects.requireNonNull(transaction, "transaction");
 
-        if (index != WATER_INDEX || !waterResource.equals(resource)
-            || !accessPolicy.canInsertWater(resource) || amount == 0) {
+        if (index != WATER_INDEX || !waterResource.equals(resource)) {
             return 0;
         }
-
-        int capacity = nonNegativeCapacity(WATER_INDEX);
-        int accepted = Math.max(0,
-            state.water().fill(waterFluidId, amount, capacity, false));
-        if (accepted == 0 || !accessPolicy.canInsertWater(resource)) {
-            return 0;
-        }
-
-        journal.beforeMutation(transaction);
-        int inserted = state.water().fill(waterFluidId, amount, capacity, true);
-        if (inserted != accepted) {
-            throw new IllegalStateException("water simulation and mutation results diverged");
-        }
-        return inserted;
+        return transferCore.insertWater(
+            waterFluidId,
+            amount,
+            () -> accessPolicy.canInsertWater(resource),
+            () -> journal.beforeMutation(transaction)
+        );
     }
 
     @Override
@@ -196,22 +190,15 @@ public final class LegacyBoilerFluidResourceHandler implements ResourceHandler<F
         Objects.checkIndex(index, TANK_COUNT);
         Objects.requireNonNull(transaction, "transaction");
 
-        if (index != STEAM_INDEX || !steamResource.equals(resource)
-            || !accessPolicy.canExtractSteam(resource) || amount == 0) {
+        if (index != STEAM_INDEX || !steamResource.equals(resource)) {
             return 0;
         }
-
-        int extracted = state.extractSteam(steamFluidId, amount, false);
-        if (extracted == 0 || !accessPolicy.canExtractSteam(resource)) {
-            return 0;
-        }
-
-        journal.beforeMutation(transaction);
-        int actual = state.extractSteam(steamFluidId, extracted, true);
-        if (actual != extracted) {
-            throw new IllegalStateException("steam simulation and extraction results diverged");
-        }
-        return actual;
+        return transferCore.extractSteam(
+            steamFluidId,
+            amount,
+            () -> accessPolicy.canExtractSteam(resource),
+            () -> journal.beforeMutation(transaction)
+        );
     }
 
     private int nonNegativeCapacity(int index) {
