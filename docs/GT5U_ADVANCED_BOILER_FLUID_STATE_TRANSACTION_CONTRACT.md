@@ -133,3 +133,24 @@ The regular Advanced Boiler tick sequence remains governed by the existing tick-
 5. Register the block capability and connect the adapter to the real boiler block entity only after the above contracts pass.
 
 No NeoForge handler, journal, block entity, or capability provider is implemented by this document.
+
+
+## 9. Pure Java aggregate implementation
+
+The first pure Java aggregate is now present:
+
+- `LegacyBoilerFluidState` composes the existing water shadow state and owns steam identity/amount.
+- Its immutable snapshot captures the water snapshot and steam state together.
+- Steam extraction supports simulation and mutation, rejects non-positive requests and mismatched fluid identity, and cannot reduce the amount below zero.
+- The aggregate deliberately does not implement NeoForge interfaces or transaction callbacks.
+
+Tests in `LegacyBoilerFluidStateTest` cover independent water/steam identities, non-negative projections, simulated and actual steam extraction, identity rejection, immutable snapshots, and aggregate rollback restoring both tanks plus the signed water remainder.
+
+The aggregate is a state/snapshot primitive, not yet a complete transactional handler. In particular, it does not yet implement water insertion permission gates, fluid-component identity mapping, NeoForge's `SnapshotJournal`, persistence, or dirty/synchronization callbacks.
+
+Implementation sequence status:
+1. **Pure Java aggregate and snapshot/restore:** implemented; local verification is pending.
+2. Review the aggregate API against the water shadow and steam output contracts.
+3. Implement and test the NeoForge journal wrapper, including nested transaction behavior.
+4. Implement the two-index backing handler and direction-specific views.
+5. Register the block capability and connect the adapter to the real boiler block entity.
