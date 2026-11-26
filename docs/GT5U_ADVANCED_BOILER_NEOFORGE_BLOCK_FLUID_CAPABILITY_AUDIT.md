@@ -231,3 +231,103 @@ Use:
 6. explicit capability invalidation only when capability availability or returned-view validity changes.
 
 This preserves the legacy distinction between tank identity, operation direction, and side/Cover permission. It does not yet implement the handler or the boiler block entity.
+
+
+## ResourceHandler method and transaction boundary audit
+
+This section audits the NeoForge 26.3.x `ResourceHandler`, `StacksResourceHandler`, `FluidStacksResourceHandler`, `SnapshotJournal`, and `Transaction` source at upstream commit `84d0790633e43646f2710751a1a73db8fab30671`.
+
+### 1. Methods the side-specific view must account for
+
+The public `ResourceHandler<T>` surface consists of:
+
+- `size()`
+- `getResource(index)`
+- `getAmountAsLong(index)` and the non-extendable `getAmountAsInt(index)`
+- `getCapacityAsLong(index, resource)` and non-extendable int overload
+- `isValid(index, resource)`
+- `insert(index, resource, amount, transaction)`
+- bulk `insert(resource, amount, transaction)`
+- `extract(index, resource, amount, transaction)`
+- bulk `extract(resource, amount, transaction)`
+
+The bulk insert/extract methods are interface defaults. They validate non-empty resource and non-negative amount, then iterate indices and invoke the index-specific methods. Therefore a side view can safely inherit the bulk defaults only if its index-specific `insert` and `extract` methods enforce every permission and storage rule.
+
+The side view must also implement `isValid` and `getCapacityAsLong` consistently as hints. A denied operation should report invalid / zero capacity where practical, but this is not the security boundary: the actual index-specific insert/extract must re-check permission at call time. NeoForge explicitly documents `isValid` and capacity as hints; callers must rely on the actual insert/extract result.
+
+Read methods should report the shared underlying tank state. Do not make a separate copy of amounts per side. This matches the old tank-info behavior, which exposed tank contents separately from the fill/drain permission checks.
+
+### 2. Two-index storage semantics
+
+The backing handler has two stable indices:
+- index 0: water input tank, water resource only, insertion only, capacity = legacy `getCapacity()`;
+- index 1: steam output tank, steam resource only, extraction only, capacity = legacy `getSteamCapacity()`.
+
+The side view must preserve those direction restrictions independently from the side/Cover policy. In particular:
+- index 0 extraction always returns 0;
+- index 1 insertion always returns 0;
+- invalid indices are rejected consistently;
+- water insertion checks the water fluid identity and current side input permission;
+- steam extraction checks the steam fluid identity and current side output permission.
+
+Resource equality must use `FluidResource` identity (fluid plus data components), not only the fluid registry key. Whether GT5U water/steam should accept non-default data components remains a compatibility policy to define; it must not be silently treated as equal if the legacy fluid identity has no equivalent metadata.
+
+### 3. Why independent per-tank snapshots are insufficient
+
+A single external transfer transaction may touch both indices or may be nested with other boiler state changes. The compatibility state is not just the two visible fluid amounts. It also includes legacy state that affects future behavior, such as:
+- water conversion remainder (`mExcessWater`);
+- processing energy / fuel energy;
+- temperature and cooldown timer;
+- boiling state and related tick state;
+- any additional fields introduced into the pure boiler snapshot/result contract.
+
+If the fluid handler changes the water amount but the pure legacy state remains outside the transaction journal, rollback can leave the model and exposed tanks inconsistent. Conversely, independently journaling water and steam while sharing model fields can produce a partial rollback if both are modified in one transaction.
+
+The transaction journal should therefore snapshot one coherent aggregate representing every mutable field that can be changed by the transactional fluid operation. At minimum, the journal's snapshot and restore methods must cover every field the adapter is permitted to mutate. If external fluid operations only mutate tank contents, the snapshot can be narrower, but the adapter must prove that no conversion remainder, energy, temperature, or other model field is changed as a side effect.
+
+### 4. Recommended transaction owner
+
+Use one boiler-owned journal (a `SnapshotJournal<LegacyBoilerTransactionalState>` or equivalent) as the transaction boundary for the aggregate legacy state.
+
+For each successful index-specific insert/extract:
+1. validate index, resource, amount, tank direction, and current side/Cover/global permission;
+2. compute the accepted/extracted amount without mutating state;
+3. if the amount is zero, return zero and do not create a snapshot;
+4. call `updateSnapshots(transaction)` on the aggregate journal immediately before the first mutation in this transaction depth;
+5. apply the mutation to the authoritative boiler state;
+6. return the exact amount changed.
+
+On abort, `revertToSnapshot` restores the entire aggregate state, including both tank inventories and any coupled legacy fields. On root commit, keep the new state and use `onRootCommit` only for irreversible effects such as marking the block entity changed, syncing data, or notifying neighbors. These effects must not happen before the root commit if they cannot themselves be rolled back.
+
+Nested commits remain provisional: child commit merges its snapshot responsibility into the parent, and a later parent abort must still restore the pre-parent state. The aggregate journal must preserve that behavior.
+
+### 5. Critical distinction: transactional API state vs normal boiler ticking
+
+The boiler tick engine and external transfer operations must share one authoritative state, but the transaction journal must not accidentally make the whole server tick transactional. The normal tick sequence (cooldown, steam push, production, overflow, fuel update, heat-up) is ordinary machine progression and should remain outside external transfer transactions unless a concrete caller explicitly supplies a transaction for it.
+
+The adapter should not call the legacy tick engine from inside `insert` or `extract`. Fluid transfer only changes the fields defined by the legacy fill/drain semantics. The regular machine tick later consumes those values according to the existing tick-order contract.
+
+### 6. Direct mutation and serialization boundary
+
+`StacksResourceHandler.set(index, resource, amount)` is a direct mutation helper, not a transactional operation:
+- it validates non-negative amount and empty-resource constraints;
+- it changes the stack immediately;
+- it invokes `onContentsChanged` immediately;
+- it does not accept a `TransactionContext` and does not create a rollback snapshot.
+
+Consequently, do not expose the backing handler's mutable `set` method to capability consumers. If using `FluidStacksResourceHandler` internally, keep it private and ensure all externally visible mutations go through the transactional wrapper. Do not use direct `set` during a transaction as a substitute for `insert` or `extract`.
+
+Likewise, serialization/deserialization is persistence, not transactional transfer. Load the saved boiler state through the block entity lifecycle, outside active transfer transactions, and keep the existing GT5U distinction between water and steam inventories.
+
+### 7. Current implementation decision
+
+The preferred implementation boundary is now:
+
+- **Authoritative boiler state:** one state object containing water, steam, and all legacy fields required by the model.
+- **Aggregate transaction journal:** snapshots/restores that state coherently.
+- **Backing handler:** two-index read/capacity/resource mapping; not exposed directly.
+- **Side view:** delegates reads to the backing state; enforces per-index direction and live side/Cover/global gates in `isValid`, capacity hints, and especially actual insert/extract.
+- **Commit callback:** mark changed / synchronize only after root commit.
+- **Tick engine:** remains outside transfer transactions and retains the audited GT5U order.
+
+No adapter implementation is added by this audit. Before coding, one remaining design issue must be resolved: the legacy boiler's water-scarcity arithmetic can produce a negative water amount and negative remainder, while NeoForge `ResourceHandler` requires non-negative amounts and `FluidResource.toStack` cannot represent negative quantities. This needs an explicit shadow-state / compatibility policy rather than normalization hidden inside the handler.
