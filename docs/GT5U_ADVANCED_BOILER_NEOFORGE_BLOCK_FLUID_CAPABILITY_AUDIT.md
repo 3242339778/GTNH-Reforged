@@ -331,3 +331,116 @@ The preferred implementation boundary is now:
 - **Tick engine:** remains outside transfer transactions and retains the audited GT5U order.
 
 No adapter implementation is added by this audit. Before coding, one remaining design issue must be resolved: the legacy boiler's water-scarcity arithmetic can produce a negative water amount and negative remainder, while NeoForge `ResourceHandler` requires non-negative amounts and `FluidResource.toStack` cannot represent negative quantities. This needs an explicit shadow-state / compatibility policy rather than normalization hidden inside the handler.
+
+
+## Signed legacy water state and non-negative NeoForge projection
+
+This section resolves the representation boundary by tracing the original GT5U source at `5.09.54.277`:
+
+- `MTEBoiler.produceSteam(int)`
+- `MTEBoiler.saveNBTData/loadNBTData`
+- `MTEBasicTank.onPreTick`
+- `MTEBasicTank.fill(FluidStack, boolean)`
+- `MTEBasicTank.getFluidAmount/getFillableStack`
+
+### 1. The negative amount is a real transient legacy state
+
+The source production arithmetic is:
+
+```java
+mExcessWater -= aAmount;
+if (mExcessWater < 0) {
+    int tWaterToConsume = -mExcessWater / GTValues.STEAM_PER_WATER;
+    mFluid.amount -= tWaterToConsume;
+    mExcessWater += GTValues.STEAM_PER_WATER * tWaterToConsume;
+}
+```
+
+It does not clamp `mFluid.amount` to zero and does not clear the fluid stack in this method. The negative amount and signed remainder are therefore part of the actual intermediate machine state.
+
+For the audited Tier 1 scarcity case (375 steam, 1 water, remainder 0), integer arithmetic consumes 2 water and produces:
+- legacy water amount = -1;
+- legacy remainder = -55.
+
+### 2. The original machine repairs the water stack on its next pre-tick
+
+On the server, `MTEBasicTank.onPreTick` checks:
+
+```java
+if (isFluidChangingAllowed() && getFillableStack() != null
+    && getFillableStack().amount <= 0) {
+    setFillableStack(null);
+}
+```
+
+Thus the negative stack is not immediately normalized by production. It is cleared by the subsequent server pre-tick, provided fluid changing is allowed (the default tank implementation allows it).
+
+This ordering matters. The adapter must preserve the signed state between production and that cleanup point, while exposing only legal non-negative quantities through NeoForge's fluid transfer API.
+
+### 3. There is a narrow external-fill edge before cleanup
+
+The legacy `MTEBasicTank.fill` implementation rejects non-positive incoming amounts, but if an existing fillable stack is present and fluid-equal, it calculates:
+
+```java
+int space = getCapacity() - getFillableStack().amount;
+```
+
+It does not clamp the existing amount before calculating space. Therefore, while the transient legacy amount is -1, a same-fluid external fill sees `capacity + 1` space. A one-unit fill can be accepted and bring the internal amount to zero; the following pre-tick then clears that zero-amount stack.
+
+This is an unusual timing-dependent legacy behavior. A compatibility implementation must not accidentally claim exact legacy equivalence while replacing it with a simpler `capacity - max(0, amount)` calculation. It must either model this edge explicitly or document that external transfers are intentionally unavailable during the transient signed-state window.
+
+### 4. Recommended representation: signed legacy state plus a non-negative API projection
+
+Keep two distinct concepts:
+
+**Authoritative legacy state**
+- `legacyWaterAmount`: signed integer, preserving the exact GT5U amount including transient negative values;
+- `legacyWaterFluidIdentity`: retained while the legacy stack exists, including the transient non-positive window;
+- `excessWaterRemainder`: signed integer, preserving the original conversion arithmetic;
+- `legacySteamAmount`: non-negative output quantity (the audited steam output path does not require negative amounts).
+
+**NeoForge-facing projection**
+- exposed water amount = `max(0, legacyWaterAmount)`;
+- exposed steam amount = `legacySteamAmount`;
+- never construct a `FluidStack` or call ResourceHandler operations with a negative amount;
+- a non-positive legacy water amount is exposed as an empty resource/zero amount, even while its signed backing state remains available to the legacy tick/cleanup logic.
+
+The projection is read-only as a representation rule; it must not overwrite or normalize the authoritative signed state. A new water insertion must update the authoritative legacy amount according to the chosen compatibility policy, not mutate a detached projected stack.
+
+### 5. Transaction journal must include the signed state
+
+The aggregate journal snapshot must include:
+- signed `legacyWaterAmount`;
+- legacy water fluid identity / null-vs-present state;
+- signed `excessWaterRemainder`;
+- steam amount and identity;
+- any other legacy fields modified by the transfer operation.
+
+A rollback must restore both the signed backing state and the public projection source together. Root-commit callbacks may mark the block entity changed or synchronize the new state; those side effects must not happen before commit.
+
+### 6. Persistence and lifecycle
+
+GT5U saves `mFluid` through `FluidStack.writeToNBT` and separately saves `mExcessWater` as an integer. Loading restores the water stack and the signed remainder independently. The target implementation should likewise persist the signed legacy amount and remainder as explicit legacy state rather than trying to serialize the negative amount through a NeoForge `FluidStack` or `ResourceHandler`.
+
+The pre-tick cleanup remains a legacy lifecycle operation: when `isFluidChangingAllowed()` is true and signed water amount is non-positive, clear the legacy water identity and amount at the same point in the tick lifecycle as the source. Do not perform this cleanup inside a ResourceHandler getter, capability query, or arbitrary render/sync callback.
+
+### 7. Compatibility decision still required before implementation
+
+There are two possible policies for the narrow interval between production and the next pre-tick:
+
+A. **Strict legacy transfer window:** reproduce the source fill arithmetic against the signed backing amount, including the temporary `capacity + 1` headroom and the zero-then-clear case. This is closest to source behavior but means the NeoForge handler's reported capacity is only a hint and may understate the amount accepted by the legacy operation during that transient interval.
+
+B. **Closed transfer window:** while signed water amount is non-positive, reject external water insertion until the next legacy pre-tick clears the stack. This is simpler and maintains a clean non-negative storage contract, but it intentionally changes the narrow legacy timing behavior described in section 3.
+
+Do not choose policy B silently. The default compatibility target remains strict legacy behavior unless an explicit design decision changes it. In either policy, the negative amount and remainder must remain preserved internally until the source cleanup point.
+
+### 8. Resolved architecture
+
+The selected data model is now:
+1. authoritative signed legacy water state and signed remainder;
+2. non-negative NeoForge fluid projection;
+3. explicit source-timed pre-tick cleanup;
+4. aggregate transaction journal over both legacy and exposed state;
+5. side-specific handler views that never pass negative amounts to NeoForge.
+
+No machine adapter implementation is added by this audit.
