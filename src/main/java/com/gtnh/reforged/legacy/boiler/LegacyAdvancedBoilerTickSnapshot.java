@@ -38,7 +38,8 @@ public final class LegacyAdvancedBoilerTickSnapshot {
     ) {
         if (tick < 0) throw new IllegalArgumentException("tick must be non-negative");
         if (maxTemperature < 0 || lossTimer < 0 || cooldownInterval < 0) throw new IllegalArgumentException("temperature limit and cooldown values must be non-negative");
-        if (processingEnergy < 0 || fuelMaxEnergy < 0 || steamAmount < 0) throw new IllegalArgumentException("energy and steam amounts must be non-negative");\n        // GT5U's produceSteam can subtract more water than is available, yielding a negative FluidStack amount.
+        if (processingEnergy < 0 || fuelMaxEnergy < 0 || steamAmount < 0) throw new IllegalArgumentException("energy and steam amounts must be non-negative");
+        // GT5U's produceSteam can subtract more water than is available, yielding a negative FluidStack amount.
         if (waterCapacity < 0 || steamCapacity < 0 || burnTimeAvailable < 0 || productionPerSecond < 0) throw new IllegalArgumentException("capacities and production values must be non-negative");
         if (heatUpRate <= 0 || heatUpEnergyCost < 0 || heatUpAmount < 0) throw new IllegalArgumentException("heat-up rate must be positive and heat-up values non-negative");
         if (waterAmount > waterCapacity) throw new IllegalArgumentException("water amount exceeds snapshot capacity");
