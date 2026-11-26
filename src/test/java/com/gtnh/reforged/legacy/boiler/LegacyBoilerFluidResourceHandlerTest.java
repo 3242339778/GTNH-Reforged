@@ -169,8 +169,10 @@ class LegacyBoilerFluidResourceHandlerTest {
         }
 
         assertThrows(IndexOutOfBoundsException.class, () -> handler.getResource(2));
-        assertThrows(IndexOutOfBoundsException.class,
-            () -> handler.insert(2, WATER, 1, Transaction.openRoot()));
+        try (var root = Transaction.openRoot()) {
+            assertThrows(IndexOutOfBoundsException.class,
+                () -> handler.insert(2, WATER, 1, root));
+        }
     }
 
     @Test
@@ -229,17 +231,20 @@ class LegacyBoilerFluidResourceHandlerTest {
         var journal = new LegacyBoilerFluidStateJournal(state, () -> {});
         var policy = new MutablePolicy();
 
-        assertThrows(IllegalArgumentException.class,
-            () -> new LegacyBoilerFluidResourceHandler(
-                journal,
-                WATER,
-                WATER_ID,
-                STEAM,
-                STEAM_ID,
-                () -> 32000,
-                () -> 64000,
-                policy
-            ).insert(0, WATER, -1, Transaction.openRoot()));
+        var handler = new LegacyBoilerFluidResourceHandler(
+            journal,
+            WATER,
+            WATER_ID,
+            STEAM,
+            STEAM_ID,
+            () -> 32000,
+            () -> 64000,
+            policy
+        );
+        try (var root = Transaction.openRoot()) {
+            assertThrows(IllegalArgumentException.class,
+                () -> handler.insert(0, WATER, -1, root));
+        }
 
         var patchedWater = WATER.with(
             net.minecraft.core.component.DataComponents.CUSTOM_NAME,
