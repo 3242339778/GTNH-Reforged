@@ -41,7 +41,7 @@ public final class LegacyAdvancedBoilerTickSnapshot {
         if (processingEnergy < 0 || fuelMaxEnergy < 0 || waterAmount < 0 || steamAmount < 0) throw new IllegalArgumentException("energy and fluid amounts must be non-negative");
         if (waterCapacity < 0 || steamCapacity < 0 || burnTimeAvailable < 0 || productionPerSecond < 0) throw new IllegalArgumentException("capacities and production values must be non-negative");
         if (heatUpRate <= 0 || heatUpEnergyCost < 0 || heatUpAmount < 0) throw new IllegalArgumentException("heat-up rate must be positive and heat-up values non-negative");
-        if (waterAmount > waterCapacity || steamAmount > steamCapacity) throw new IllegalArgumentException("fluid amount exceeds snapshot capacity");
+        if (waterAmount > waterCapacity) throw new IllegalArgumentException("water amount exceeds snapshot capacity");
         this.tick=tick; this.temperature=temperature; this.maxTemperature=maxTemperature;
         this.lossTimer=lossTimer; this.cooldownInterval=cooldownInterval;
         this.processingEnergy=processingEnergy; this.fuelMaxEnergy=fuelMaxEnergy;
