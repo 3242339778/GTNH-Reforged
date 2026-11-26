@@ -16,7 +16,7 @@ public final class LegacyAdvancedBoilerTickResult {
         int steamProducedThisTick, int waterConsumedThisTick, int burnTimeConsumed,
         boolean fuelInjectionRequested, boolean active, boolean boiling, boolean vented
     ) {
-        if (lossTimer < 0 || processingEnergy < 0 || fuelMaxEnergy < 0 || waterAmount < 0 || steamAmount < 0
+        if (lossTimer < 0 || processingEnergy < 0 || fuelMaxEnergy < 0 || steamAmount < 0
             || steamProducedThisTick < 0 || waterConsumedThisTick < 0 || burnTimeConsumed < 0) {
             throw new IllegalArgumentException("result counters and amounts must be non-negative");
         }
