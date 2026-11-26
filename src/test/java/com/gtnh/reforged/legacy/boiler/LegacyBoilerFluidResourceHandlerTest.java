@@ -75,7 +75,7 @@ class LegacyBoilerFluidResourceHandlerTest {
     }
 
     @Test
-    void waterInsertSimulationDoesNotMutateAndRootAbortRestoresAggregate() {
+    void waterInsertIsTransactionalAndRootAbortRestoresAggregate() {
         var state = newState(100, 500);
         var callbacks = new AtomicInteger();
         var handler = newHandler(state, callbacks, new MutablePolicy());
