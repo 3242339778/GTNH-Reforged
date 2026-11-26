@@ -32,10 +32,7 @@ class LegacyBoilerFluidTransferCoreTest {
         );
     }
 
-    private static LegacyBoilerFluidTransferCore newCore(
-        LegacyBoilerFluidState state,
-        LegacyBoilerFluidStateJournal journal
-    ) {
+    private static LegacyBoilerFluidTransferCore newCore(LegacyBoilerFluidState state) {
         return new LegacyBoilerFluidTransferCore(
             state, WATER_ID, STEAM_ID, () -> 32000, () -> 64000
         );
@@ -46,7 +43,7 @@ class LegacyBoilerFluidTransferCoreTest {
         var state = newState(100, 500);
         var callbacks = new AtomicInteger();
         var journal = new LegacyBoilerFluidStateJournal(state, callbacks::incrementAndGet);
-        var core = newCore(state, journal);
+        var core = newCore(state);
 
         try (var root = Transaction.openRoot()) {
             assertEquals(25, core.insertWater(WATER_ID, 25, () -> true, () -> journal.beforeMutation(root)));
