@@ -154,3 +154,80 @@ These are not blockers for capability discovery, but they must be answered befor
 The target lookup is `level.getCapability(Capabilities.Fluid.BLOCK, neighborPos, outward.getOpposite())`. The opposite-side argument is directly supported by the GT5U `moveFluid` source, which fills the adjacent handler on `drainSide.getOpposite()`.
 
 For the initial adapter, direct lookup is the simplest correct integration. If the boiler performs this lookup every server tick, a per-neighbor `BlockCapabilityCache` is the intended optimization, provided invalidation and listener restrictions are respected. Capability discovery and lifecycle behavior are now understood well enough to design the adapter boundary; the boiler's own exposed tank view and transaction mismatch policy remain separate design decisions.
+
+
+## Side-specific provider design (NeoForge 26.3.x source verified)
+
+The pinned project dependency is NeoForge 26.3.0.113. The upstream `26.3.x` sources for `Capabilities`, `RegisterCapabilitiesEvent`, `IBlockCapabilityProvider`, `BlockCapabilityCache`, `BlockCapability`, and `ILevelExtension` were inspected for this design.
+
+### Provider receives the queried block face
+
+The built-in capability is declared as:
+
+```java
+BlockCapability<ResourceHandler<FluidResource>, @Nullable Direction>
+```
+
+The registered block-entity provider receives that nullable `Direction` as its second argument:
+
+```java
+event.registerBlockEntity(
+    Capabilities.Fluid.BLOCK,
+    BOILER_BLOCK_ENTITY_TYPE,
+    (boiler, queriedSide) -> boiler.getFluidHandlerView(queriedSide)
+);
+```
+
+Here `queriedSide` is the face of the boiler block being queried. It is the correct input for the boiler's own legacy side policy. It is not the outward direction used to locate a neighboring target during steam push.
+
+### Do not use Provider null as a directional insert/extract denial
+
+A single fluid capability represents both boiler tanks. A given side may permit water insertion while denying steam extraction, or the reverse, depending on its Cover. Returning `null` for that side would hide both operations together and would not reproduce the legacy contract.
+
+The provider should normally return a side-specific `ResourceHandler<FluidResource>` view. That view delegates storage reads to the shared two-tank backing handler, but gates the actual operations independently:
+
+| Operation | Required checks |
+|---|---|
+| Insert into water index | machine timer/data/input-enabled gates; side input predicate; Cover `letsFluidIn(resource fluid)` |
+| Extract from water index | reject |
+| Insert into steam index | reject |
+| Extract from steam index | machine timer/data/output-enabled gates; side output predicate; Cover `letsFluidOut(resource fluid)` |
+
+The view must also reject invalid indices. The backing inventories remain shared; the per-side views must not create independent copies of the water or steam amounts.
+
+The `ResourceHandler` contract treats `isValid` and capacity as hints, not as authorization to mutate. The final insert/extract methods must enforce the side policy even if a caller skips hints or calls the handler directly.
+
+### Nullable Direction and legacy UNKNOWN
+
+NeoForge's side context is nullable. GT5U uses `ForgeDirection.UNKNOWN` as a real unsided call path, and that path bypasses the legacy side predicate and Cover fluid checks while retaining the timer, data-access, and global input/output-disabled gates.
+
+For compatibility, the target's `null` side should be deliberately mapped to that unsided policy:
+- skip side-specific input/output predicates;
+- skip Cover fluid permission checks;
+- retain machine-wide availability and input/output-disabled checks.
+
+Do not map `null` to DOWN, UP, or an arbitrary default side. This mapping is a compatibility decision to preserve GT5U UNKNOWN semantics, not an assumption that all unsided NeoForge callers are internal.
+
+### Return null only when the capability itself is unavailable
+
+The provider should return `null` when the boiler does not expose a fluid capability at all (for example, the block entity is unavailable or removed). A side that denies one operation should still return its handler view so the other operation can remain available.
+
+A future implementation may use one stable view per direction plus one unsided view. Those views should consult current machine/Cover state when operations occur rather than snapshotting permissions at construction. If the provider changes whether a capability exists or replaces an already-returned view with an incompatible object, it must call `level.invalidateCapabilities(pos)` (or the block entity's equivalent invalidation method) as required by the API.
+
+### Cache and invalidation implications
+
+The 26.3.x `BlockCapabilityCache` is explicitly bound to one target position and one context. A consumer therefore needs a distinct cache for each neighbor position/face pair it repeatedly queries. Its listener must only mark local state for later refresh; it must not query the capability or access the level from inside the listener.
+
+For the boiler's own provider, Cover changes that only alter permissions can be handled by a stable view that reads live Cover state. If a Cover change alters whether the capability is exposed or changes the identity/validity of the returned view, invalidate the boiler position. The same rule applies to any machine configuration that changes capability availability.
+
+### Design decision
+
+Use:
+1. one registered `Capabilities.Fluid.BLOCK` provider for the boiler block-entity type;
+2. a shared two-index backing handler (water input index 0, steam output index 1);
+3. a side-specific `ResourceHandler<FluidResource>` view for each queried `Direction`, plus an unsided/null view;
+4. independent insert and extract gates inside those views;
+5. live reads of machine and Cover permissions;
+6. explicit capability invalidation only when capability availability or returned-view validity changes.
+
+This preserves the legacy distinction between tank identity, operation direction, and side/Cover permission. It does not yet implement the handler or the boiler block entity.
