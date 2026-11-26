@@ -16,9 +16,10 @@ class LegacyAdvancedBoilerTickContractTest {
         assertTrue(snapshot.machineAllowedToWork());
     }
 
-    @Test void snapshotRejectsNegativeAmountsAndFluidBeyondCapacity() {
-        assertThrows(IllegalArgumentException.class, () -> new LegacyAdvancedBoilerTickSnapshot(
-            0, 20, 100, 0, 40, 0, 0, -1, 0, true, false, true, 100, 100, 0, 0, 750, 10, 2, 1));
+    @Test void snapshotAllowsNegativeWaterButRejectsAmountBeyondCapacity() {
+        var negativeWater = new LegacyAdvancedBoilerTickSnapshot(
+            0, 20, 100, 0, 40, 0, 0, -1, 0, true, false, true, 100, 100, 0, 0, 750, 10, 2, 1);
+        assertEquals(-1, negativeWater.waterAmount());
         assertThrows(IllegalArgumentException.class, () -> new LegacyAdvancedBoilerTickSnapshot(
             0, 20, 100, 0, 40, 0, 0, 101, 0, true, false, true, 100, 100, 0, 0, 750, 10, 2, 1));
     }
