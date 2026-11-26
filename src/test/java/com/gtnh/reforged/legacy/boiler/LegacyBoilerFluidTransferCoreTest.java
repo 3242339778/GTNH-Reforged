@@ -229,13 +229,13 @@ class LegacyBoilerFluidTransferCoreTest {
                     () -> journal.beforeMutation(root)));
             assertEquals(0, core.insertWater(WATER_ID, 20, () -> true,
                 () -> journal.beforeMutation(root)));
-            assertEquals(0, core.extractSteam(STEAM_ID, 20, () -> true,
+            assertEquals(20, core.extractSteam(STEAM_ID, 20, () -> true,
                 () -> journal.beforeMutation(root)));
             root.commit();
         }
 
         assertEquals(100, state.water().legacyAmount());
-        assertEquals(500, state.steamAmount());
-        assertEquals(0, callbacks.get());
+        assertEquals(480, state.steamAmount());
+        assertEquals(1, callbacks.get());
     }
 }
