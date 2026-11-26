@@ -45,3 +45,15 @@ The inherited `onPostTick` is the orchestration point:
 An eventual adapter should explicitly provide a tick snapshot (server-side tick, temperature, max temperature, processing energy, water type/amount, steam type/amount/capacity, fuel information, machine-work permission, output-side handlers) and apply model results through separate effects (fluid transfer, fuel consumption/container return/ash RNG, pollution, sound/state updates, NBT synchronization).
 
 Do not implement the adapter until the state snapshot and effect contract are reviewed against the target 26.3 architecture.
+
+## Engine consistency audit (follow-up)
+
+A follow-up review against the fetched source at commit `e0518e35b896c3a0663065aea57287dbf49c77b9` identified and corrected several discrepancies in the pure engine:
+
+- The inherited tick gate returns for ticks <= 20 before cooldown, steam transfer, production, venting, fuel, or heat-up. The pure engine now preserves state and returns no effects for that range.
+- Overflow is checked against `getSteamCapacity()` (Advanced Boiler: twice water capacity), not `getCapacity()`. The engine and test now use steam capacity.
+- Snapshot validation must permit steam amounts above capacity so that the overflow branch can be represented and tested; water capacity validation remains strict.
+- The boiling flag is set based on the water validity/positive-amount gate before production mutates the water amount. A tick that consumes the last water still sets the flag true for that tick, matching the override.
+- Fuel max tracking is done by the inherited `addProcessingEnergy` during fuel injection. The engine continues to capture the resulting maximum; a separate zero-energy clearing occurs in heat-up phase.
+
+The pure engine still does not simulate server-side checks, pollution, steam transfer, item/container/ash handling, sounds, or synchronization. Those remain adapter responsibilities.
