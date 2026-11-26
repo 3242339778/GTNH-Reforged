@@ -169,6 +169,32 @@ class LegacyBoilerFluidTransferCoreTest {
     }
 
     @Test
+    void deniesMutationWhenAccessChangesAfterSimulation() {
+        var state = newState(100, 500);
+        var callbacks = new AtomicInteger();
+        var journal = new LegacyBoilerFluidStateJournal(state, callbacks::incrementAndGet);
+        var core = newCore(state);
+        var waterChecks = new AtomicInteger();
+        var steamChecks = new AtomicInteger();
+
+        try (var root = Transaction.openRoot()) {
+            assertEquals(0, core.insertWater(WATER_ID, 20,
+                () -> waterChecks.incrementAndGet() == 1,
+                () -> journal.beforeMutation(root)));
+            assertEquals(0, core.extractSteam(STEAM_ID, 20,
+                () -> steamChecks.incrementAndGet() == 1,
+                () -> journal.beforeMutation(root)));
+            root.commit();
+        }
+
+        assertEquals(2, waterChecks.get());
+        assertEquals(2, steamChecks.get());
+        assertEquals(100, state.water().legacyAmount());
+        assertEquals(500, state.steamAmount());
+        assertEquals(0, callbacks.get());
+    }
+
+    @Test
     void zeroAmountOperationsDoNotRegisterJournalOrNotify() {
         var state = newState(100, 500);
         var callbacks = new AtomicInteger();
