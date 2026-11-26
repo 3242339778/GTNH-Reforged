@@ -197,7 +197,7 @@ Implemented behavior:
 - Water extraction and steam insertion are always rejected.
 - The handler preflights acceptance through the model's non-mutating path, then applies the accepted amount inside the caller's transaction. NeoForge's ResourceHandler has no boolean simulation parameter; callers that want a simulation can perform the operation in a transaction and close it without committing.
 - Positive mutations call the shared aggregate journal immediately before changing state.
-- Every operation checks the supplied access policy live. A direction-specific view can compose machine-wide, physical-side, and Cover gates without copying fluid state.
+- Every operation checks the supplied access policy live, including a second check immediately before mutation. A direction-specific view can compose machine-wide, physical-side, and Cover gates without copying fluid state.
 - Wrong resources, wrong indices, denied operations, and zero-amount requests do not mutate state or trigger root-commit callbacks.
 - The configured capacity suppliers are clamped to non-negative hints. Actual water acceptance remains authoritative, including the signed transient window.
 
