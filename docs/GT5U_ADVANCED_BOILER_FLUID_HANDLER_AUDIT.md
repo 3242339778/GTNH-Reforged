@@ -6,7 +6,7 @@
 
 ## Scope
 
-This audit examines the boiler's own fluid inventories and the legacy `MTEBasicTank` / `MTEBoiler` fluid methods. It defines the semantic requirements for a future `ResourceHandler<FluidResource>` adapter. It does not yet establish all GregTech cover/tile-entity side-routing rules; those require tracing the base tile entity's external `IFluidHandler` dispatch.
+This audit examines the boiler's own fluid inventories, legacy `MTEBasicTank` / `MTEBoiler` fluid methods, and the external `BaseMetaTileEntity` / Cover side-routing path. It defines the semantic requirements for a future `ResourceHandler<FluidResource>` adapter. The external side-routing path has now been traced; the exact rules are recorded in section 8.
 
 ## 1. The boiler has two independent fluid inventories
 
@@ -116,7 +116,7 @@ A single two-index handler is preferable as an initial compatibility representat
 ## 7. Important unresolved compatibility edges
 
 1. **Negative water arithmetic:** the pure GT5U calculation can drive `mFluid.amount` negative in the audited scarcity edge case. NeoForge ResourceHandler amounts are non-negative. The adapter must not write a negative amount into a ResourceHandler. A compatibility shadow value or a documented normalization/recovery policy is required; do not silently clamp without tests.
-2. **Side/cover routing:** trace the GregTech base tile entity's external fill/drain routing, including cover interception, before defining the side-specific provider.
+2. **Side/cover routing:** the legacy gate is now known (section 8). The future provider must reproduce it, including the `UNKNOWN` side bypass and cover-specific fluid permissions.
 3. **Steam metadata capacity:** decide whether any legacy-facing tank-info presentation should preserve the inaccurate reported capacity, while actual storage continues using `getSteamCapacity()`.
 4. **Fluid identity:** determine the registered steam fluid and Data Component policy in the target project.
 5. **Transaction integration:** use journaled transactional mutation. Do not mutate the legacy model or backing state outside the transaction and then expect a handler rollback to undo it.
@@ -124,4 +124,80 @@ A single two-index handler is preferable as an initial compatibility representat
 
 ## Conclusion
 
-The legacy boiler is one external fluid handler with two separate internal inventories: water is fill-only and steam is drain-only. The best initial NeoForge representation is a two-index `ResourceHandler<FluidResource>` with separate capacities and strict per-index insert/extract rules, wrapped in a side-aware provider. Exact cover/side routing remains to be traced through GregTech's base tile-entity dispatch before the provider can be considered complete. No machine adapter is implemented by this audit.
+The legacy boiler is one external fluid handler with two separate internal inventories: water is fill-only and steam is drain-only. The best initial NeoForge representation is a two-index `ResourceHandler<FluidResource>` with separate capacities and strict per-index insert/extract rules, wrapped in a side-aware provider. Exact cover/side routing has been traced through GregTech's base tile-entity dispatch and is recorded in section 8. No machine adapter is implemented by this audit.
+
+
+## 8. External fluid-handler side routing (resolved from source)
+
+Source path:
+- `BaseMetaTileEntity.fill(ForgeDirection, FluidStack, boolean)`
+- `BaseMetaTileEntity.drain(ForgeDirection, int, boolean)`
+- `BaseMetaTileEntity.drain(ForgeDirection, FluidStack, boolean)`
+- `BaseMetaTileEntity.canFill/canDrain`
+- `MetaTileEntity.isLiquidInput/isLiquidOutput`
+- `CoverableTileEntity.getCoverAtSide`
+- `Cover.letsFluidIn/letsFluidOut`
+- `CoverNone`
+
+### 8.1 Boiler's base side policy
+
+The base `MetaTileEntity` implementation returns `true` from both `isLiquidInput(side)` and `isLiquidOutput(side)`. `MTEBoiler` does not override either method. Therefore, the boiler itself does not impose a front/back/vertical restriction on external fluid input or output: all six real directions pass the meta-tile side predicate.
+
+This is distinct from the boiler's automatic steam-push loop, which independently skips its front-facing side and DOWN. That push policy does not restrict external automation drain access.
+
+### 8.2 Base tile entity gates
+
+For a real side (anything other than `ForgeDirection.UNKNOWN`), external fill is delegated only when all of these hold:
+
+1. `mTickTimer > 5`;
+2. `canAccessData()`;
+3. the machine is currently running its own tick, or external input is not disabled (`mRunningThroughTick || !mInputDisabled`);
+4. `mMetaTileEntity.isLiquidInput(side)` is true;
+5. `getCoverAtSide(side).letsFluidIn(fluid)` is true.
+
+External drain has the corresponding conditions, using:
+- `mRunningThroughTick || !mOutputDisabled`;
+- `mMetaTileEntity.isLiquidOutput(side)`;
+- `getCoverAtSide(side).letsFluidOut(fluid)`.
+
+The same gates are applied by `canFill` and `canDrain`. Tank-info lookup is different: `getTankInfo(side)` delegates when meta-tile data is accessible and does not apply these fill/drain cover gates.
+
+For `drain(side, maxDrain, doDrain)`, the Cover receives the fluid currently returned by `mMetaTileEntity.getFluid()`. For `drain(side, requestedFluid, doDrain)`, it receives the requested fluid. This distinction should be retained if reproducing the old overload behavior exactly.
+
+### 8.3 Cover defaults and consequences
+
+`CoverableTileEntity` initializes all six sides with `CoverRegistry.NO_COVER`. The no-cover implementation (`CoverNone`) returns true for both `letsFluidIn` and `letsFluidOut`. Thus, with no cover and normal machine access enabled, all six sides are open for water insertion and steam extraction.
+
+An installed Cover may override these methods. The base `Cover` implementation defaults both fluid permissions to false, so a custom Cover that does not explicitly permit fluid movement blocks it. Examples include:
+- `CoverShutter`, which independently gates fluid-in and fluid-out;
+- `CoverDecorative`, which uses its cover-data bit to permit or deny fluid movement;
+- `CoverFluidLimiter`, which can gate input based on fill level.
+
+The fluid type passed to the Cover is the relevant resource's legacy Fluid. The Cover check is per side and per direction, not a global boiler setting.
+
+### 8.4 UNKNOWN side is a deliberate bypass
+
+When the caller supplies `ForgeDirection.UNKNOWN`, the base fill/drain methods bypass both:
+- `isLiquidInput/isLiquidOutput(side)`;
+- `Cover.letsFluidIn/letsFluidOut(fluid)`.
+
+The timer, data-access, and external input/output-disabled gates still apply. This is an intentional legacy path used by internal or compatibility callers; do not silently equate UNKNOWN with one of the six world directions.
+
+### 8.5 Direction meaning at the adapter boundary
+
+The direction passed to the boiler's external handler is the boiler-side face being accessed. When a neighboring block queries the boiler through a face, the provider must map that query to the corresponding side on the boiler. In NeoForge's block capability lookup, this is the face of the boiler exposed toward the querying neighbor (the opposite of the neighbor's outward face).
+
+Keep this separate from the neighbor lookup performed by the boiler when it pushes steam outward: that lookup targets the adjacent block and uses the face of that adjacent block facing back toward the boiler.
+
+### 8.6 Adapter contract derived from the trace
+
+For each queried side, the future adapter/provider should apply the equivalent of:
+
+- water index insertion: timer/data/input-enabled gate, boiler input-side predicate, and that side's Cover input permission;
+- water index extraction: always reject at the tank semantic layer;
+- steam index insertion: always reject at the tank semantic layer;
+- steam index extraction: timer/data/output-enabled gate, boiler output-side predicate, and that side's Cover output permission.
+
+Since the boiler inherits the default side predicates, all six sides are eligible absent a Cover or global disable gate. Do not bake the front/down steam auto-push exclusions into external extraction access.
+
+The adapter still needs a target-side representation for Covers and machine-wide external input/output disable state. A bare two-index ResourceHandler without a side-aware wrapper would not preserve this legacy contract.
