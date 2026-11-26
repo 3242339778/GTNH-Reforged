@@ -8,9 +8,9 @@ public final class LegacyAdvancedBoilerTickEngine {
     private LegacyAdvancedBoilerTickEngine() {}
 
     /**
-     * Calculates one tick from a snapshot. previousBoiling preserves the source
-     * behavior where high temperature with invalid/absent water does not clear
-     * the boiling flag.
+     * Calculates one tick from a snapshot. The source boiler skips all tick
+     * processing through tick 20. previousBoiling preserves the source behavior
+     * where high temperature with invalid/absent water does not clear the flag.
      */
     public static LegacyAdvancedBoilerTickResult calculate(
         LegacyAdvancedBoilerTickSnapshot input, boolean previousBoiling
@@ -22,6 +22,13 @@ public final class LegacyAdvancedBoilerTickEngine {
         int water = input.waterAmount();
         int steam = input.steamAmount();
         int remainder = input.excessWaterRemainder();
+
+        // Source onPostTick returns before cooldown and all other operations at tick <= 20.
+        if (input.tick() <= 20) {
+            return new LegacyAdvancedBoilerTickResult(
+                temperature, lossTimer, energy, fuelMaxEnergy, water, steam, remainder,
+                0, 0, 0, false, energy > 0, previousBoiling, false);
+        }
 
         // 1. Cooldown
         if (temperature <= 20) {
@@ -38,8 +45,8 @@ public final class LegacyAdvancedBoilerTickEngine {
         // 2. Steam production (inventory push is deliberately external).
         int steamProduced = 0;
         int waterConsumed = 0;
-        if (input.tick() % 10 == 0 && temperature > 100
-            && input.waterIsValid() && water > 0) {
+        boolean hadValidWaterAtProductionGate = input.waterIsValid() && water > 0;
+        if (input.tick() % 10 == 0 && temperature > 100 && hadValidWaterAtProductionGate) {
             steamProduced = input.productionPerSecond() / 2;
             int conversion = remainder - steamProduced;
             if (conversion < 0) {
@@ -51,16 +58,16 @@ public final class LegacyAdvancedBoilerTickEngine {
             steam += steamProduced;
         }
 
-        // Boiling state is updated in this source phase, before fuel injection and heat-up.
+        // Boiling flag uses the same pre-production water-validity gate as source code.
         boolean boiling = previousBoiling;
         if (input.tick() % 10 == 0) {
-            if (temperature > 100 && input.waterIsValid() && water > 0) boiling = true;
+            if (temperature > 100 && hadValidWaterAtProductionGate) boiling = true;
             else if (temperature <= 100) boiling = false;
         }
 
-        // 3. Overflow behavior uses getCapacity() (waterCapacity), not steamCapacity.
-        boolean vented = steam > input.waterCapacity();
-        if (vented) steam = (input.waterCapacity() * 3) / 4;
+        // 3. Overflow check is against getSteamCapacity(), not the water capacity.
+        boolean vented = steam > input.steamCapacity();
+        if (vented) steam = (input.steamCapacity() * 3) / 4;
 
         // 4. Fuel update occurs only when energy is empty and machine is allowed.
         boolean fuelInjectionRequested = false;
@@ -83,6 +90,9 @@ public final class LegacyAdvancedBoilerTickEngine {
             temperature += input.heatUpAmount();
             if (energy <= 0) fuelMaxEnergy = 0;
             active = energy > 0;
+        } else if (energy <= 0) {
+            fuelMaxEnergy = 0;
+            active = false;
         }
 
         return new LegacyAdvancedBoilerTickResult(
