@@ -68,3 +68,11 @@ Added tests to exercise the following audited boundary behaviors:
 - The inherited heat-up method clears fuel maximum whenever processing energy is non-positive, even on a tick that is not a heat-up cadence.
 
 These are pure-engine regression tests. They do not prove the adapter correctly resolves fuel stacks, ash/container handling, server-side authority, machine active synchronization, or fluid transfers.
+
+## Water-scarcity arithmetic edge case
+
+The audited inherited `produceSteam(int)` does not clamp the water stack amount after consumption. With an Advanced Boiler Tier 1 batch of 375 steam, zero accumulator remainder, and only 1 unit of water, the source calculates consumption as `375 / 160 = 2`, subtracts 2 from the water amount, and carries remainder `-55`. The resulting water amount is `-1`.
+
+The pure snapshot/result contracts were updated to permit this source-observed negative water amount. A following production gate checks water amount > 0 and therefore does not produce steam while the amount is negative. Regression tests cover both the one-unit-water calculation and the subsequent blocked production tick.
+
+This behavior is intentionally preserved for source fidelity. The integration adapter must separately investigate how the target fluid tank API and persistence tolerate such an amount; these tests only preserve the arithmetic behavior.
