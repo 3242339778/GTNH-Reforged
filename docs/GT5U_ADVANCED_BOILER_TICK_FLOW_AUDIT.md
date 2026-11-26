@@ -57,3 +57,14 @@ A follow-up review against the fetched source at commit `e0518e35b896c3a0663065a
 - Fuel max tracking is done by the inherited `addProcessingEnergy` during fuel injection. The engine continues to capture the resulting maximum; a separate zero-energy clearing occurs in heat-up phase.
 
 The pure engine still does not simulate server-side checks, pollution, steam transfer, item/container/ash handling, sounds, or synchronization. Those remain adapter responsibilities.
+
+## State boundary regression coverage
+
+Added tests to exercise the following audited boundary behaviors:
+
+- Fuel eligibility is checked against the temperature after the cooldown phase, with the exact `<= 101` gate.
+- Fuel injection can occur on a non-heat-up cadence tick; injection adds processing energy and its temperature bonus, but the separate heat-up phase does not consume energy on that tick.
+- At the configured maximum temperature, positive processing energy and its fuel maximum are retained; the machine remains active according to the end-of-tick energy check.
+- The inherited heat-up method clears fuel maximum whenever processing energy is non-positive, even on a tick that is not a heat-up cadence.
+
+These are pure-engine regression tests. They do not prove the adapter correctly resolves fuel stacks, ash/container handling, server-side authority, machine active synchronization, or fluid transfers.
