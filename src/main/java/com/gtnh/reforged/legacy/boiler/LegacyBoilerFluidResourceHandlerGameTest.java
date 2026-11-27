@@ -2,9 +2,9 @@ package com.gtnh.reforged.legacy.boiler;
 
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.gametest.framework.GameTestHolder;
+import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.level.material.FluidStack;
+import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 
