@@ -4,6 +4,7 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestHolder;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.material.FluidStack;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 
@@ -20,8 +21,8 @@ public final class LegacyBoilerFluidResourceHandlerGameTest {
 
     @GameTest(template = "minecraft:empty")
     public static void adapterViewsAndTransactionalTransfer(GameTestHelper helper) {
-        var water = FluidResource.of(Fluids.WATER);
-        var steam = FluidResource.of(Fluids.LAVA);
+        var water = FluidResource.of(new FluidStack(Fluids.WATER, 1));
+        var steam = FluidResource.of(new FluidStack(Fluids.LAVA, 1));
         var state = new LegacyBoilerFluidState(
             new LegacyBoilerWaterShadowState(WATER_ID, 100, -55), STEAM_ID, 500
         );
