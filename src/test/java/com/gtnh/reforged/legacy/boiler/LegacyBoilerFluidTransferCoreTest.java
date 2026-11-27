@@ -238,4 +238,76 @@ class LegacyBoilerFluidTransferCoreTest {
         assertEquals(480, state.steamAmount());
         assertEquals(1, callbacks.get());
     }
+
+    @Test
+    void waterInsertAcceptsOnlyAvailableCapacity() {
+        var state = newState(31990, 0);
+        var callbacks = new AtomicInteger();
+        var journal = new LegacyBoilerFluidStateJournal(state, callbacks::incrementAndGet);
+        var core = newCore(state);
+
+        try (var root = Transaction.openRoot()) {
+            assertEquals(10, core.insertWater(WATER_ID, 25, () -> true,
+                () -> journal.beforeMutation(root)));
+            assertEquals(32000, state.water().legacyAmount());
+            root.commit();
+        }
+
+        assertEquals(32000, state.water().legacyAmount());
+        assertEquals(1, callbacks.get());
+    }
+
+    @Test
+    void steamExtractionAcceptsOnlyAvailableAmount() {
+        var state = newState(100, 10);
+        var callbacks = new AtomicInteger();
+        var journal = new LegacyBoilerFluidStateJournal(state, callbacks::incrementAndGet);
+        var core = newCore(state);
+
+        try (var root = Transaction.openRoot()) {
+            assertEquals(10, core.extractSteam(STEAM_ID, 25, () -> true,
+                () -> journal.beforeMutation(root)));
+            assertEquals(0, state.steamAmount());
+            root.commit();
+        }
+
+        assertEquals(0, state.steamAmount());
+        assertEquals(1, callbacks.get());
+    }
+
+    @Test
+    void steamExtractionRejectsNegativeAmount() {
+        var state = newState(100, 500);
+        var core = newCore(state);
+
+        try (var root = Transaction.openRoot()) {
+            assertThrows(IllegalArgumentException.class,
+                () -> core.extractSteam(STEAM_ID, -1, () -> true,
+                    () -> {
+                        throw new AssertionError("journal must not be registered");
+                    }));
+        }
+
+        assertEquals(500, state.steamAmount());
+    }
+
+    @Test
+    void fullWaterTankAndEmptySteamTankDoNotRegisterJournal() {
+        var state = newState(32000, 0);
+        var callbacks = new AtomicInteger();
+        var journal = new LegacyBoilerFluidStateJournal(state, callbacks::incrementAndGet);
+        var core = newCore(state);
+
+        try (var root = Transaction.openRoot()) {
+            assertEquals(0, core.insertWater(WATER_ID, 1, () -> true,
+                () -> journal.beforeMutation(root)));
+            assertEquals(0, core.extractSteam(STEAM_ID, 1, () -> true,
+                () -> journal.beforeMutation(root)));
+            root.commit();
+        }
+
+        assertEquals(32000, state.water().legacyAmount());
+        assertEquals(0, state.steamAmount());
+        assertEquals(0, callbacks.get());
+    }
 }
