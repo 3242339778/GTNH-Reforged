@@ -128,4 +128,45 @@ class LegacyAdvancedBoilerTickEngineTest {
         assertEquals(-1, result.waterAmount());
         assertEquals(375, result.steamAmount());
     }
+
+    @Test void existingSteamIsPushedBeforeThisTicksProduction() {
+        var input = new LegacyAdvancedBoilerTickSnapshot(30, 110, 500, 0, 40,
+            10, 10, 100, 900, true, true, true, 32000, 64000, 0, 0, 750, 10, 2, 1);
+        var offered = new java.util.ArrayList<Integer>();
+
+        var result = LegacyAdvancedBoilerTickEngine.calculate(input, false, false, amount -> {
+            offered.add(amount);
+            return 400;
+        });
+
+        assertEquals(java.util.List.of(900), offered);
+        assertEquals(375, result.steamProducedThisTick());
+        assertEquals(775, result.steamAmount());
+    }
+
+    @Test void steamOutputIsNotCalledForEmptyTankOrStartupTicks() {
+        var empty = snapshot(30, 110, 10, 100, 0, 0, 0);
+        var startup = snapshot(20, 110, 10, 100, 900, 0, 0);
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+
+        var emptyResult = LegacyAdvancedBoilerTickEngine.calculate(
+            empty, false, false, amount -> { calls.incrementAndGet(); return amount; });
+        var startupResult = LegacyAdvancedBoilerTickEngine.calculate(
+            startup, false, false, amount -> { calls.incrementAndGet(); return amount; });
+
+        assertEquals(0, calls.get());
+        assertEquals(375, emptyResult.steamProducedThisTick());
+        assertEquals(900, startupResult.steamAmount());
+    }
+
+    @Test void steamOutputCallbackCannotCreateOrNegateSteam() {
+        var input = new LegacyAdvancedBoilerTickSnapshot(30, 100, 500, 0, 40,
+            10, 10, 100, 50, true, true, true, 32000, 64000, 0, 0, 750, 10, 2, 1);
+
+        assertThrows(IllegalStateException.class, () ->
+            LegacyAdvancedBoilerTickEngine.calculate(input, false, false, amount -> amount + 1));
+        assertThrows(IllegalStateException.class, () ->
+            LegacyAdvancedBoilerTickEngine.calculate(input, false, false, amount -> -1));
+    }
+
 }
