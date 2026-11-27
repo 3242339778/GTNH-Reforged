@@ -13,7 +13,7 @@ class LegacyAdvancedBoilerTickEngineTest {
     }
 
     @Test void productionAndWaterConversionAreAppliedOnCadence() {
-        var result = LegacyAdvancedBoilerTickEngine.calculate(snapshot(30, 110, 10, 100, 0, 0, 0), false);
+        var result = LegacyAdvancedBoilerTickEngine.calculate(snapshot(30, 110, 10, 100, 0, 0, 0), false, false);
         assertEquals(375, result.steamProducedThisTick());
         assertEquals(2, result.waterConsumedThisTick());
         assertEquals(98, result.waterAmount());
@@ -23,7 +23,7 @@ class LegacyAdvancedBoilerTickEngineTest {
     }
 
     @Test void productionIsSkippedOffCadence() {
-        var result = LegacyAdvancedBoilerTickEngine.calculate(snapshot(31, 110, 10, 100, 0, 0, 0), false);
+        var result = LegacyAdvancedBoilerTickEngine.calculate(snapshot(31, 110, 10, 100, 0, 0, 0), false, false);
         assertEquals(0, result.steamProducedThisTick());
         assertEquals(100, result.waterAmount());
         assertEquals(0, result.steamAmount());
@@ -32,14 +32,14 @@ class LegacyAdvancedBoilerTickEngineTest {
     @Test void cooldownUsesGreaterThanInterval() {
         var input = new LegacyAdvancedBoilerTickSnapshot(21, 120, 500, 40, 40,
             0, 0, 0, 0, true, true, true, 32000, 64000, 0, 0, 750, 10, 2, 1);
-        var result = LegacyAdvancedBoilerTickEngine.calculate(input, false);
+        var result = LegacyAdvancedBoilerTickEngine.calculate(input, false, false);
         assertEquals(119, result.temperature());
         assertEquals(0, result.lossTimer());
     }
 
     @Test void ticksThroughTwentyAreSkippedEntirely() {
         var input = snapshot(20, 120, 10, 100, 0, 5, 500);
-        var result = LegacyAdvancedBoilerTickEngine.calculate(input, true);
+        var result = LegacyAdvancedBoilerTickEngine.calculate(input, true, true);
         assertEquals(120, result.temperature());
         assertEquals(0, result.lossTimer());
         assertEquals(10, result.processingEnergy());
@@ -52,7 +52,7 @@ class LegacyAdvancedBoilerTickEngineTest {
     }
 
     @Test void fuelInjectionAndHeatUpFollowTickOrdering() {
-        var result = LegacyAdvancedBoilerTickEngine.calculate(snapshot(30, 100, 0, 100, 0, 0, 500), false);
+        var result = LegacyAdvancedBoilerTickEngine.calculate(snapshot(30, 100, 0, 100, 0, 0, 500), false, false);
         assertTrue(result.fuelInjectionRequested());
         assertEquals(500, result.burnTimeConsumed());
         assertEquals(48, result.processingEnergy());
@@ -63,7 +63,7 @@ class LegacyAdvancedBoilerTickEngineTest {
     @Test void overflowUsesSteamCapacityAndVentsToThreeQuarters() {
         var input = new LegacyAdvancedBoilerTickSnapshot(21, 100, 500, 0, 40,
             0, 0, 0, 64001, true, true, true, 32000, 64000, 0, 0, 750, 10, 2, 1);
-        var result = LegacyAdvancedBoilerTickEngine.calculate(input, false);
+        var result = LegacyAdvancedBoilerTickEngine.calculate(input, false, false);
         assertTrue(result.vented());
         assertEquals(48000, result.steamAmount());
     }
@@ -71,32 +71,59 @@ class LegacyAdvancedBoilerTickEngineTest {
     @Test void boilingStatePersistsAboveThresholdWithoutWaterButClearsAtLowTemperature() {
         var noWater = new LegacyAdvancedBoilerTickSnapshot(30, 110, 500, 0, 40,
             0, 0, 0, 0, false, true, true, 32000, 64000, 0, 0, 750, 10, 2, 1);
-        assertTrue(LegacyAdvancedBoilerTickEngine.calculate(noWater, true).boiling());
+        assertTrue(LegacyAdvancedBoilerTickEngine.calculate(noWater, true, true).boiling());
 
         var cold = new LegacyAdvancedBoilerTickSnapshot(30, 100, 500, 0, 40,
             0, 0, 0, 0, false, true, true, 32000, 64000, 0, 0, 750, 10, 2, 1);
-        assertFalse(LegacyAdvancedBoilerTickEngine.calculate(cold, true).boiling());
+        assertFalse(LegacyAdvancedBoilerTickEngine.calculate(cold, true, true).boiling());
     }
 
     @Test void boilingFlagCanRemainTrueWhenProductionConsumesLastWater() {
         var input = snapshot(30, 110, 10, 2, 0, 0, 0);
-        var result = LegacyAdvancedBoilerTickEngine.calculate(input, false);
+        var result = LegacyAdvancedBoilerTickEngine.calculate(input, false, false);
         assertTrue(result.boiling());
         assertEquals(0, result.waterAmount());
     }
 
     @Test void insufficientWaterMatchesSourceAndProducesNegativeAmount() {
-        var result = LegacyAdvancedBoilerTickEngine.calculate(snapshot(30, 110, 10, 1, 0, 0, 0), false);
+        var result = LegacyAdvancedBoilerTickEngine.calculate(snapshot(30, 110, 10, 1, 0, 0, 0), false, false);
         assertEquals(375, result.steamProducedThisTick());
         assertEquals(2, result.waterConsumedThisTick());
         assertEquals(-1, result.waterAmount());
         assertEquals(-55, result.excessWaterRemainder());
     }
 
+    @Test void invalidExistingSteamIsReplacedWhenProductionStarts() {
+        var input = new LegacyAdvancedBoilerTickSnapshot(30, 110, 500, 0, 40,
+            10, 10, 100, 900, true, false, true, 32000, 64000, 0, 0, 750, 10, 2, 1);
+
+        var result = LegacyAdvancedBoilerTickEngine.calculate(input, false, false);
+
+        assertEquals(375, result.steamProducedThisTick());
+        assertEquals(375, result.steamAmount());
+    }
+
+    @Test void validExistingSteamIsAccumulatedWhenProductionStarts() {
+        var input = new LegacyAdvancedBoilerTickSnapshot(30, 110, 500, 0, 40,
+            10, 10, 100, 900, true, true, true, 32000, 64000, 0, 0, 750, 10, 2, 1);
+
+        var result = LegacyAdvancedBoilerTickEngine.calculate(input, false, false);
+
+        assertEquals(1275, result.steamAmount());
+    }
+
+    @Test void earlyTicksPreservePreviousMachineActiveState() {
+        var input = new LegacyAdvancedBoilerTickSnapshot(20, 120, 500, 0, 40,
+            10, 10, 100, 0, true, true, true, 32000, 64000, 0, 500, 750, 10, 2, 1);
+
+        assertFalse(LegacyAdvancedBoilerTickEngine.calculate(input, false, false).active());
+        assertTrue(LegacyAdvancedBoilerTickEngine.calculate(input, false, true).active());
+    }
+
     @Test void negativeWaterAmountBlocksNextProductionGate() {
         var input = new LegacyAdvancedBoilerTickSnapshot(40, 110, 500, 0, 40,
             10, 10, -1, 375, true, true, true, 32000, 64000, -55, 0, 750, 10, 2, 1);
-        var result = LegacyAdvancedBoilerTickEngine.calculate(input, false);
+        var result = LegacyAdvancedBoilerTickEngine.calculate(input, false, false);
         assertEquals(0, result.steamProducedThisTick());
         assertEquals(-1, result.waterAmount());
         assertEquals(375, result.steamAmount());
