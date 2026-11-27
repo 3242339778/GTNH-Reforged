@@ -15,6 +15,7 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import com.gtnh.reforged.block.PrototypePowerCableChunkUnloadDiagnostics;
+import com.gtnh.reforged.legacy.boiler.LegacyBoilerFluidResourceHandlerGameTest;
 
 /** Main entry point for GTNH: Reforged. */
 @Mod(GTNHReforged.MOD_ID)
@@ -27,6 +28,7 @@ public final class GTNHReforged {
         ModItems.ITEMS.register(modEventBus);
         ModBlocks.BLOCKS.register(modEventBus);
         ModBlocks.BLOCK_ENTITY_TYPES.register(modEventBus);
+        LegacyBoilerFluidResourceHandlerGameTest.register(modEventBus);
 
         MaterialCatalog materialCatalog = BuiltInMaterials.createInitialCatalog();
         RecipeCatalog recipeCatalog = BuiltInRecipes.createInitialCatalog(materialCatalog);
