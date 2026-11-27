@@ -2,6 +2,7 @@ package com.gtnh.reforged.legacy.boiler;
 
 import java.util.Objects;
 import java.util.function.IntSupplier;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.TransferPreconditions;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
@@ -46,10 +47,10 @@ public final class LegacyBoilerFluidResourceHandler implements ResourceHandler<F
         AccessPolicy accessPolicy
     ) {
         this.journal = Objects.requireNonNull(journal, "journal");
-        this.waterResource = requirePlainResource(waterResource, "waterResource");
         this.waterFluidId = requireFluidId(waterFluidId, "waterFluidId");
-        this.steamResource = requirePlainResource(steamResource, "steamResource");
+        this.waterResource = requireMatchingResource(waterResource, this.waterFluidId, "waterResource");
         this.steamFluidId = requireFluidId(steamFluidId, "steamFluidId");
+        this.steamResource = requireMatchingResource(steamResource, this.steamFluidId, "steamResource");
         this.waterCapacity = Objects.requireNonNull(waterCapacity, "waterCapacity");
         this.steamCapacity = Objects.requireNonNull(steamCapacity, "steamCapacity");
         this.transferCore = new LegacyBoilerFluidTransferCore(
@@ -59,7 +60,11 @@ public final class LegacyBoilerFluidResourceHandler implements ResourceHandler<F
         this.accessPolicy = Objects.requireNonNull(accessPolicy, "accessPolicy");
     }
 
-    private static FluidResource requirePlainResource(FluidResource resource, String name) {
+    private static FluidResource requireMatchingResource(
+        FluidResource resource,
+        String expectedFluidId,
+        String name
+    ) {
         Objects.requireNonNull(resource, name);
         if (resource.isEmpty()) {
             throw new IllegalArgumentException(name + " must not be empty");
@@ -67,6 +72,12 @@ public final class LegacyBoilerFluidResourceHandler implements ResourceHandler<F
         if (!resource.isComponentsPatchEmpty()) {
             throw new IllegalArgumentException(
                 name + " must not contain data-component patches; the legacy state stores registry IDs only");
+        }
+
+        var registeredId = BuiltInRegistries.FLUID.getKey(resource.getFluid());
+        if (registeredId == null || !expectedFluidId.equals(registeredId.toString())) {
+            throw new IllegalArgumentException(
+                name + " resolves to " + registeredId + " but its configured legacy fluid ID is " + expectedFluidId);
         }
         return resource;
     }
