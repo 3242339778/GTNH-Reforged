@@ -169,4 +169,37 @@ class LegacyAdvancedBoilerTickEngineTest {
             LegacyAdvancedBoilerTickEngine.calculate(input, false, false, amount -> -1));
     }
 
+
+    @Test void existingSteamUsesLegacySideTransferBeforeProduction() {
+        var input = new LegacyAdvancedBoilerTickSnapshot(30, 110, 500, 0, 40,
+            10, 10, 100, 900, true, true, true, 32000, 64000, 0, 0, 750, 10, 2, 1);
+        var attemptedSides = new java.util.ArrayList<LegacyBoilerSteamOutputTransfer.Side>();
+
+        var result = LegacyAdvancedBoilerTickEngine.calculate(input, false, false, amount ->
+            LegacyBoilerSteamOutputTransfer.push(
+                amount,
+                LegacyBoilerSteamOutputTransfer.Side.UP,
+                new LegacyBoilerSteamOutputTransfer.TransferPort() {
+                    @Override
+                    public boolean hasTarget(LegacyBoilerSteamOutputTransfer.Side side) {
+                        return side == LegacyBoilerSteamOutputTransfer.Side.SOUTH;
+                    }
+
+                    @Override
+                    public int simulateFill(LegacyBoilerSteamOutputTransfer.Side side, int offeredAmount) {
+                        attemptedSides.add(side);
+                        return offeredAmount;
+                    }
+
+                    @Override
+                    public int fill(LegacyBoilerSteamOutputTransfer.Side side, int drainedAmount) {
+                        return drainedAmount;
+                    }
+                }).remainingSteamAmount());
+
+        assertEquals(java.util.List.of(LegacyBoilerSteamOutputTransfer.Side.SOUTH), attemptedSides);
+        assertEquals(450, result.steamAmount() - result.steamProducedThisTick());
+        assertEquals(825, result.steamAmount());
+    }
+
 }
