@@ -96,8 +96,16 @@ public final class LegacyBoilerFluidResourceHandlerGameTest {
         helper.assertTrue(!handler.isValid(1, water), "Steam slot must reject water");
 
         try (var tx = Transaction.openRoot()) {
-            helper.assertTrue(handler.insert(0, water, 50, tx) == 50, "Water simulation amount mismatch");
-            helper.assertTrue(state.water().legacyAmount() == 100, "Simulation mutated water state");
+            helper.assertTrue(handler.insert(0, water, 50, tx) == 50, "Water transactional insertion amount mismatch");
+            helper.assertTrue(state.water().legacyAmount() == 150, "Water mutation should be visible inside the open transaction");
+            // Intentionally abort to verify snapshot rollback.
+        }
+        helper.assertTrue(state.water().legacyAmount() == 100, "Aborted water transaction changed state");
+        helper.assertTrue(commits[0] == 0, "Aborted water transaction should not notify");
+
+        try (var tx = Transaction.openRoot()) {
+            helper.assertTrue(handler.insert(0, water, 50, tx) == 50, "Committed water insertion amount mismatch");
+            helper.assertTrue(state.water().legacyAmount() == 150, "Committed water mutation should be visible inside the transaction");
             tx.commit();
         }
         helper.assertTrue(state.water().legacyAmount() == 150, "Committed water fill mismatch");
