@@ -112,8 +112,8 @@ public final class LegacyBoilerFluidResourceHandlerGameTest {
         helper.assertTrue(commits[0] == 1, "Expected one root commit notification");
 
         try (var tx = Transaction.openRoot()) {
-            helper.assertTrue(handler.extract(1, steam, 100, tx) == 100, "Steam simulation amount mismatch");
-            helper.assertTrue(state.steamAmount() == 500, "Steam simulation mutated state");
+            helper.assertTrue(handler.extract(1, steam, 100, tx) == 100, "Steam transactional extraction amount mismatch");
+            helper.assertTrue(state.steamAmount() == 400, "Steam mutation should be visible inside the open transaction");
             // Intentionally abort.
         }
         helper.assertTrue(state.steamAmount() == 500, "Aborted steam transaction changed state");
