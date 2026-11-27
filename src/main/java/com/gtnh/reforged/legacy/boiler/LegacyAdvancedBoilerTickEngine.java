@@ -1,5 +1,8 @@
 package com.gtnh.reforged.legacy.boiler;
 
+import java.util.Objects;
+import java.util.function.IntUnaryOperator;
+
 /**
  * Pure Java tick calculation for the audited Advanced Boiler mechanics.
  * Steam inventory transfer remains an integration-side operation.
@@ -16,6 +19,27 @@ public final class LegacyAdvancedBoilerTickEngine {
     public static LegacyAdvancedBoilerTickResult calculate(
         LegacyAdvancedBoilerTickSnapshot input, boolean previousBoiling, boolean previousActive
     ) {
+        return calculate(input, previousBoiling, previousActive, amount -> amount);
+    }
+
+    /**
+     * Calculates one tick while allowing the integration layer to push the
+     * steam that already exists in the tank.
+     *
+     * <p>The callback runs after cooldown and before steam production, matching
+     * {@code MTEBoiler.onPostTick}: old steam is pushed before this tick can
+     * create additional steam. It is not called for an empty tank or during the
+     * startup early return. The callback must return the amount remaining in
+     * the source tank and must not increase the offered amount.</p>
+     */
+    public static LegacyAdvancedBoilerTickResult calculate(
+        LegacyAdvancedBoilerTickSnapshot input,
+        boolean previousBoiling,
+        boolean previousActive,
+        IntUnaryOperator pushExistingSteam
+    ) {
+        Objects.requireNonNull(input, "input");
+        Objects.requireNonNull(pushExistingSteam, "pushExistingSteam");
         int temperature = input.temperature();
         int lossTimer = input.lossTimer();
         int energy = input.processingEnergy();
@@ -43,7 +67,18 @@ public final class LegacyAdvancedBoilerTickEngine {
             }
         }
 
-        // 2. Steam production (inventory push is deliberately external).
+        // 2. Push the steam that existed at tick start before producing more.
+        // This callback represents MTEBoiler.pushSteamToInventories.
+        if (steam > 0) {
+            int remainingAfterPush = pushExistingSteam.applyAsInt(steam);
+            if (remainingAfterPush < 0 || remainingAfterPush > steam) {
+                throw new IllegalStateException(
+                    "steam output callback must return an amount between zero and the offered amount");
+            }
+            steam = remainingAfterPush;
+        }
+
+        // 3. Steam production.
         int steamProduced = 0;
         int waterConsumed = 0;
         boolean hadValidWaterAtProductionGate = input.waterIsValid() && water > 0;
@@ -66,11 +101,11 @@ public final class LegacyAdvancedBoilerTickEngine {
             else if (temperature <= 100) boiling = false;
         }
 
-        // 3. Overflow check is against getSteamCapacity(), not the water capacity.
+        // 4. Overflow check is against getSteamCapacity(), not the water capacity.
         boolean vented = steam > input.steamCapacity();
         if (vented) steam = (input.steamCapacity() * 3) / 4;
 
-        // 4. Fuel update occurs only when energy is empty and machine is allowed.
+        // 5. Fuel update occurs only when energy is empty and machine is allowed.
         boolean fuelInjectionRequested = false;
         int burnTimeConsumed = 0;
         if (energy <= 0 && input.machineAllowedToWork()
@@ -83,7 +118,7 @@ public final class LegacyAdvancedBoilerTickEngine {
             burnTimeConsumed = burnTime;
         }
 
-        // 5. Heat-up calculation. Source cadence is tick % 10.
+        // 6. Heat-up calculation. Source cadence is tick % 10.
         boolean active = energy > 0;
         if (input.tick() % input.heatUpRate() == 0
             && temperature < input.maxTemperature() && energy > 0) {
