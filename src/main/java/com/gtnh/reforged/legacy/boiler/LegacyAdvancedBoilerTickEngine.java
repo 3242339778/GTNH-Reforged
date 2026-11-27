@@ -13,7 +13,7 @@ public final class LegacyAdvancedBoilerTickEngine {
      * where high temperature with invalid/absent water does not clear the flag.
      */
     public static LegacyAdvancedBoilerTickResult calculate(
-        LegacyAdvancedBoilerTickSnapshot input, boolean previousBoiling
+        LegacyAdvancedBoilerTickSnapshot input, boolean previousBoiling, boolean previousActive
     ) {
         int temperature = input.temperature();
         int lossTimer = input.lossTimer();
@@ -27,7 +27,7 @@ public final class LegacyAdvancedBoilerTickEngine {
         if (input.tick() <= 20) {
             return new LegacyAdvancedBoilerTickResult(
                 temperature, lossTimer, energy, fuelMaxEnergy, water, steam, remainder,
-                0, 0, 0, false, energy > 0, previousBoiling, false);
+                0, 0, 0, false, previousActive, previousBoiling, false);
         }
 
         // 1. Cooldown
@@ -55,7 +55,7 @@ public final class LegacyAdvancedBoilerTickEngine {
                 conversion += waterConsumed * LegacyAdvancedBoilerSteamModel.STEAM_PER_WATER;
             }
             remainder = conversion;
-            steam += steamProduced;
+            steam = input.steamIsValid() ? steam + steamProduced : steamProduced;
         }
 
         // Boiling flag uses the same pre-production water-validity gate as source code.
