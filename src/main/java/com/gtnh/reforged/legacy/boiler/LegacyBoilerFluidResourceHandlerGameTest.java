@@ -1,10 +1,22 @@
 package com.gtnh.reforged.legacy.boiler;
 
-import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.gametest.framework.FunctionGameTestInstance;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.minecraft.gametest.framework.TestData;
+import net.minecraft.gametest.framework.TestEnvironmentDefinition;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.material.Fluids;
+import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.bus.api.IEventBus;
+
+import java.util.function.Consumer;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 
@@ -12,14 +24,46 @@ import net.neoforged.neoforge.transfer.transaction.Transaction;
  * Registry-backed GameTests for the NeoForge fluid adapter.
  * These tests run in the GameTest server, not in the plain JUnit environment.
  */
-@GameTestHolder("gtnh_reforged")
 public final class LegacyBoilerFluidResourceHandlerGameTest {
     private static final String WATER_ID = "minecraft:water";
     private static final String STEAM_ID = "minecraft:lava";
 
+    public static final DeferredRegister<Consumer<GameTestHelper>> TEST_FUNCTIONS =
+        DeferredRegister.create(BuiltInRegistries.TEST_FUNCTION, "gtnh_reforged");
+    private static final String TEST_TRANSFER = "legacy_boiler_fluid_adapter_transactional_transfer";
+    private static final String TEST_ACCESS = "legacy_boiler_fluid_adapter_live_access_policy";
+
+    static {
+        TEST_FUNCTIONS.register(TEST_TRANSFER, () -> LegacyBoilerFluidResourceHandlerGameTest::adapterViewsAndTransactionalTransfer);
+        TEST_FUNCTIONS.register(TEST_ACCESS, () -> LegacyBoilerFluidResourceHandlerGameTest::adapterRespectsLiveAccessPolicyAndResourceIdentity);
+    }
+
     private LegacyBoilerFluidResourceHandlerGameTest() {}
 
-    @GameTest(template = "minecraft:empty")
+    public static void register(IEventBus modEventBus) {
+        TEST_FUNCTIONS.register(modEventBus);
+        modEventBus.addListener(LegacyBoilerFluidResourceHandlerGameTest::registerGameTests);
+    }
+
+    private static void registerGameTests(RegisterGameTestsEvent event) {
+        Holder<TestEnvironmentDefinition<?>> environment = event.registerEnvironment(
+            Identifier.fromNamespaceAndPath("gtnh_reforged", "legacy_boiler"),
+            new TestEnvironmentDefinition.AllOf()
+        );
+        registerTest(event, environment, TEST_TRANSFER);
+        registerTest(event, environment, TEST_ACCESS);
+    }
+
+    private static ResourceKey<Consumer<GameTestHelper>> testFunctionKey(String name) {
+        return ResourceKey.create(Registries.TEST_FUNCTION, Identifier.fromNamespaceAndPath("gtnh_reforged", name));
+    }
+
+    private static void registerTest(RegisterGameTestsEvent event, Holder<TestEnvironmentDefinition<?>> environment, String name) {
+        TestData<Holder<TestEnvironmentDefinition<?>>> data =
+            new TestData<>(environment, Identifier.parse("minecraft:empty"), 100, 0, true, Rotation.NONE);
+        event.registerTest(Identifier.fromNamespaceAndPath("gtnh_reforged", name),
+            new FunctionGameTestInstance(testFunctionKey(name), data));
+    }
     public static void adapterViewsAndTransactionalTransfer(GameTestHelper helper) {
         var water = FluidResource.of(new FluidStack(Fluids.WATER, 1));
         var steam = FluidResource.of(new FluidStack(Fluids.LAVA, 1));
@@ -75,8 +119,6 @@ public final class LegacyBoilerFluidResourceHandlerGameTest {
 
         helper.succeed();
     }
-
-    @GameTest(template = "minecraft:empty")
     public static void adapterRespectsLiveAccessPolicyAndResourceIdentity(GameTestHelper helper) {
         var water = FluidResource.of(Fluids.WATER);
         var steam = FluidResource.of(Fluids.LAVA);
