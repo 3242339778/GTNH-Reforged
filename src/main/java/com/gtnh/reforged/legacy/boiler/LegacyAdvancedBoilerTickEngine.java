@@ -10,7 +10,8 @@ public final class LegacyAdvancedBoilerTickEngine {
     /**
      * Calculates one tick from a snapshot. The source boiler skips all tick
      * processing through tick 20. previousBoiling preserves the source behavior
-     * where high temperature with invalid/absent water does not clear the flag.
+     * where high temperature with invalid/absent water does not clear the flag;
+     * previousActive preserves the machine state because the early return does not update it.
      */
     public static LegacyAdvancedBoilerTickResult calculate(
         LegacyAdvancedBoilerTickSnapshot input, boolean previousBoiling, boolean previousActive
