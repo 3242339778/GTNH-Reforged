@@ -135,6 +135,14 @@ public final class LegacyBoilerFluidResourceHandlerGameTest {
         );
         var commits = new int[1];
         var journal = new LegacyBoilerFluidStateJournal(state, () -> commits[0]++);
+        helper.assertTrue(
+            rejectsIdentityMismatch(journal, steam, WATER_ID, steam, STEAM_ID),
+            "Water resource configured with a different registry ID must be rejected"
+        );
+        helper.assertTrue(
+            rejectsIdentityMismatch(journal, water, WATER_ID, water, STEAM_ID),
+            "Steam resource configured with a different registry ID must be rejected"
+        );
         var allowed = new boolean[] { false };
         var handler = new LegacyBoilerFluidResourceHandler(
             journal, water, WATER_ID, steam, STEAM_ID, () -> 1000, () -> 1000,
@@ -173,5 +181,34 @@ public final class LegacyBoilerFluidResourceHandlerGameTest {
         helper.assertTrue(commits[0] == 1, "Allowed mutation should notify once");
 
         helper.succeed();
+    }
+
+    private static boolean rejectsIdentityMismatch(
+        LegacyBoilerFluidStateJournal journal,
+        FluidResource waterResource,
+        String waterFluidId,
+        FluidResource steamResource,
+        String steamFluidId
+    ) {
+        try {
+            new LegacyBoilerFluidResourceHandler(
+                journal, waterResource, waterFluidId, steamResource, steamFluidId,
+                () -> 1000, () -> 1000,
+                new LegacyBoilerFluidResourceHandler.AccessPolicy() {
+                    @Override
+                    public boolean canInsertWater(FluidResource resource) {
+                        return true;
+                    }
+
+                    @Override
+                    public boolean canExtractSteam(FluidResource resource) {
+                        return true;
+                    }
+                }
+            );
+            return false;
+        } catch (IllegalArgumentException expected) {
+            return true;
+        }
     }
 }
